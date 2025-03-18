@@ -1,86 +1,80 @@
-import React from 'react'
-import dynamic from 'next/dynamic'
-import { LucideProps, TrendingUp } from 'lucide-react';
-import dynamicIconImports from 'lucide-react/dynamicIconImports';
+"use client";
+
+import React from 'react';
+import { CircleDollarSign, TrendingUp } from 'lucide-react';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
-} from "../../components/ui/card";
-import { ChartConfig } from '@/components/ui/chart';
-import { Chart } from '@/components/charts/index';
+} from "../ui/card";
+import { Chart } from '../charts';
 
+// Configuração do gráfico
 export const chartConfig = {
     month: {
-        label: "Month",
-        color: "#2563eb",
+        label: "Mês anterior",
+        color: "#3b82f6", // blue-500
     },
-    actualMonth: {
-        label: "Actual Month",
-        color: "#db2777",
-    },
-} satisfies ChartConfig
+};
 
-interface simpleCardConfig extends LucideProps {
-    icon: keyof typeof dynamicIconImports;
-    title: string;
-    chartDescription: string;
-    backgroundColor: string;
+interface ChartCardProps {
+    icon: string;
     percentValue: string;
     totalReceipt: string;
 }
 
 export default function ChartCard({
     icon,
-    title,
     percentValue,
     totalReceipt,
-    chartDescription,
-    backgroundColor
-}: simpleCardConfig) {
-    const IconComponent = dynamic(dynamicIconImports[icon])
+}: ChartCardProps) {
+    const faturamentoData = [
+        { name: "Abr", value: 437.90 },
+        { name: "Mai", value: 100.98 },
+        { name: "Jun", value: 387.79 },
+        { name: "Jul", value: 303.75 },
+        { name: "Ago", value: 200.00 },
+        { name: "Set", value: 100.98 }
+    ];
 
     return (
-        <Card className='flex flex-wrap w-full h-fit'>
-            <CardHeader className='w-full flex flex-row justify-between items-center align-center'>
-                <div className='flex flex-row items-center align-center gap-2'>
-                    <button className={`flex items-center justify-center w-10 h-10 rounded-full ${backgroundColor}`}>
-                        <IconComponent size={30} name={icon} color="#000000" />
-                    </button>
-                    <CardTitle>{title}</CardTitle>
+        <Card className="overflow-hidden border h-full border-border bg-background">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-green-500">
+                        <CircleDollarSign size={22} color="#FFFFFF" />
+                    </div>
+                    <CardTitle className="text-base font-medium text-primary">Faturamento</CardTitle>
                 </div>
-                <CardTitle className='mr-2 text-lg'>Ver detalhes</CardTitle>
+                <button className="text-sm text-gray-500 transition-colors hover:text-primary hover:underline">
+                    Ver detalhes
+                </button>
             </CardHeader>
-            <CardDescription className='w-full flex flex-row px-2 justify-between'>
-                <div className='flex flex-col px-4'>
-                    <span className='text-lg text-zinc-400 text-start'>
-                        Em relação ao mês passado
-                    </span>
-                    <p className='flex flex-row justify-end gap-1 text-lime-500 font-semibold text-lg'>
-                        <TrendingUp />
-                        {`${percentValue}%`}
-                    </p>
+            <CardContent className="px-2">
+                <div className="flex justify-between items-center p-2 border-y border-border">
+                    <div>
+                        <p className="text-sm text-gray-500">Em relação ao mês passado</p>
+                        <p className="flex items-center gap-1 text-green-500 font-medium">
+                            <TrendingUp size={16} />
+                            {percentValue}%
+                        </p>
+                    </div>
+                    <div className="h-8 border-r border-border"></div>
+                    <div>
+                        <p className="text-sm text-gray-500 text-right">Receita total (R$)</p>
+                        <p className="text-green-500 font-medium text-right">
+                            R$ {totalReceipt}
+                        </p>
+                    </div>
                 </div>
-                <div className='border-r border-zinc-700' />
-                <div className='flex flex-col px-4'>
-                    <span className='text-lg text-zinc-400 flex justify-end'>
-                        Receita total (R$)
-                    </span>
-                    <p className='flex flex-row gap-1 justify-end text-lime-500 font-semibold text-lg'>
-                        <TrendingUp />
-                        {`R$ ${totalReceipt}`}
-                    </p>
+                <div className="p-4">
+                    <p className="text-sm font-medium mb-2">Faturamento dos últimos 6 meses</p>
+                    <div className="h-56 w-full">
+                        <Chart data={faturamentoData} barColor="#14b8a6" highlightColor="#f97316" valuePrefix='R$' />
+                    </div>
                 </div>
-            </CardDescription>
-            <CardContent className='w-full my-3'>
-                <div className='gap-2 border-t border-zinc-700' />
-                <CardDescription className='py-2 text-lg text-white'>
-                    {chartDescription}
-                </CardDescription>
-                <Chart config={chartConfig} variant='default' />
             </CardContent>
         </Card>
-    )
+    );
 }

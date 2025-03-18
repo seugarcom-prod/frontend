@@ -1,0 +1,110 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+body {
+  font-family: 'Inter', sans-serif;
+}
+
+@layer base {
+  :root {
+    /* Light theme - exatamente conforme os tokens da imagem */
+    --background: #FFFFFF;
+    --foreground: #0A0A0A;
+    --card: #FFFFFF;
+    --card-foreground: #0A0A0A;
+    --popover: #FFFFFF;
+    --popover-foreground: #0A0A0A;
+    --primary: #171717;
+    --primary-foreground: #FAFAFA;
+    --secondary: #F5F5F5;
+    --secondary-foreground: #171717;
+    --muted: #F5F5F5;
+    --muted-foreground: #737373;
+    --accent: #F5F5F5;
+    --accent-foreground: #171717;
+    --destructive: #EF4444;
+    --destructive-foreground: #FAFAFA;
+    --border: #E5E5E5;
+    --input: #E5E5E5;
+    --ring: #0A0A0A;
+
+    /* Cores adicionais da imagem */
+    --success: #22C55E;
+    --info: #3B82F6;
+    --warning: #EAB308;
+
+    /* Cores para os gráficos */
+    --chart-1: 142.1 76.2% 36.3%;
+    --chart-2: 205.3 80.6% 40.4%;
+    --chart-3: 27.5 91.4% 55.3%;
+    --chart-4: 10.5 81.9% 43.3%;
+    --chart-5: 220 81% 56%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Dark theme - exatamente conforme os tokens da imagem */
+    --background: #0A0A0A;
+    --foreground: #FAFAFA;
+    --card: #0A0A0A;
+    --card-foreground: #FAFAFA;
+    --popover: #0A0A0A;
+    --popover-foreground: #FAFAFA;
+    --primary: #FAFAFA;
+    --primary-foreground: #171717;
+    --secondary: #262626;
+    --secondary-foreground: #FAFAFA;
+    --muted: #262626;
+    --muted-foreground: #A3A3A3;
+    --accent: #262626;
+    --accent-foreground: #FAFAFA;
+    --destructive: #7F1D1D;
+    --destructive-foreground: #FAFAFA;
+    --border: #262626;
+    --input: #262626;
+    --ring: #D4D4D4;
+
+    /* Cores adicionais para o tema escuro atualizadas conforme a imagem */
+    --success: #15803D;
+    --info: #1E40AF;
+    --warning: #EAB308;
+
+    /* Cores para os gráficos no tema escuro */
+    --chart-1: 142.1 70.6% 45.3%;
+    --chart-2: 217.2 91.2% 59.8%;
+    --chart-3: 32.1 94.6% 43.7%;
+    --chart-4: 0 72.2% 50.6%;
+    --chart-5: 323.7 77.8% 65.1%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  .recharts-tooltip-cursor {
+    fill: transparent !important;
+  }
+
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px white inset !important;
+    -webkit-text-fill-color: black !important;
+  }
+
+  .dark input:-webkit-autofill,
+  .dark input:-webkit-autofill:hover,
+  .dark input:-webkit-autofill:focus,
+  .dark input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px #0A0A0A inset !important;
+    -webkit-text-fill-color: white !important;
+  }
+}
