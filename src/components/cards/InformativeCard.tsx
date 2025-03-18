@@ -1,33 +1,16 @@
 import React from 'react'
-import dynamic from 'next/dynamic'
-import { LucideProps, TrendingUp } from 'lucide-react';
-import dynamicIconImports from 'lucide-react/dynamicIconImports';
+import { ShoppingBag, TrendingUp } from 'lucide-react';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
-} from "../../components/ui/card"
-import { ChartConfig } from '@/components/ui/chart';
-import { Chart } from '@/components/charts/index';
+} from "../ui/card"
+import { Chart } from '../charts';
+import { chartConfig } from './ChartCard';
 
-export const chartConfig = {
-    month: {
-        label: "Month",
-        color: "#2563eb",
-    },
-    actualMonth: {
-        label: "Actual Month",
-        color: "#db2777",
-    },
-} satisfies ChartConfig
-
-interface informativeCard extends LucideProps {
-    icon: keyof typeof dynamicIconImports;
-    title: string;
-    chartDescription?: string;
-    backgroundColor: string;
+interface InformativeCardProps {
+    icon: string;
     canceled: number;
     quantity: number;
     inProduction: number;
@@ -35,63 +18,64 @@ interface informativeCard extends LucideProps {
 
 export default function InformativeCard({
     icon,
-    title,
     canceled,
     quantity,
     inProduction,
-    chartDescription,
-    backgroundColor,
-}: informativeCard) {
-    const IconComponent = dynamic(dynamicIconImports[icon])
+}: InformativeCardProps) {
+    const pedidosData = [
+        { name: "Abr", value: 140 },
+        { name: "Mai", value: 5 },
+        { name: "Jun", value: 100 },
+        { name: "Jul", value: 93 },
+        { name: "Ago", value: 74 },
+        { name: "Set", value: 5 }
+    ];
 
     return (
-        <Card className='flex flex-col flex-wrap w-full h-[453px]'>
-            <CardHeader className='w-full flex flex-row justify-between items-center align-center'>
-                <div className='flex flex-row items-center align-center gap-2'>
-                    <button className={`flex items-center justify-center w-10 h-10 rounded-full ${backgroundColor}`}>
-                        <IconComponent size={30} name={icon} color="#000000" />
-                    </button>
-                    <CardTitle>{title}</CardTitle>
+        <Card className="overflow-hidden border border-border bg-background">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-500">
+                        <ShoppingBag size={22} color="#FFFFFF" />
+                    </div>
+                    <CardTitle className="text-base font-medium text-primary">Pedidos</CardTitle>
                 </div>
-                <CardTitle className='mr-2 text-lg'>Ver detalhes</CardTitle>
+                <button className="text-sm text-gray-500 transition-colors hover:text-primary hover:underline">
+                    Ver detalhes
+                </button>
             </CardHeader>
-            <CardDescription className='w-full flex flex-row px-2 justify-between'>
-                <div className='flex flex-col px-4'>
-                    <span className='text-lg text-zinc-400 text-start'>
-                        Realizados hoje
-                    </span>
-                    <p className='flex flex-row justify-end gap-1 text-lime-500 font-semibold text-lg'>
-                        <TrendingUp />
-                        {quantity}
-                    </p>
+            <CardContent className="px-2">
+                <div className="flex justify-between items-center p-2 border-y border-border">
+                    <div className="text-center">
+                        <p className="text-sm text-gray-500">Realizados hoje</p>
+                        <p className="flex items-center justify-center gap-1 text-green-500 font-medium">
+                            <TrendingUp size={16} />
+                            {quantity}
+                        </p>
+                    </div>
+                    <div className="h-8 border-r border-border"></div>
+                    <div className="text-center">
+                        <p className="text-sm text-gray-500">Cancelados</p>
+                        <p className="flex items-center justify-center gap-1 text-red-600 font-medium">
+                            <TrendingUp size={16} />
+                            {canceled}
+                        </p>
+                    </div>
+                    <div className="h-8 border-r border-border"></div>
+                    <div className="text-center">
+                        <p className="text-sm text-gray-500">Em produção</p>
+                        <p className="flex items-center justify-center gap-1 text-yellow-600 font-medium">
+                            <TrendingUp size={16} />
+                            {inProduction}
+                        </p>
+                    </div>
                 </div>
-                <div className='border-r border-zinc-700' />
-                <div className='flex flex-col px-4'>
-                    <span className='text-lg text-zinc-400 flex justify-end'>
-                        Cancelados
-                    </span>
-                    <p className='flex flex-row gap-1 justify-end text-lime-500 font-semibold text-lg'>
-                        <TrendingUp />
-                        {canceled}
-                    </p>
+                <div className="p-4">
+                    <p className="text-sm font-medium mb-4">Quantidade de pedidos realizados nos últimos 6 meses</p>
+                    <div className="h-56 w-full">
+                        <Chart data={pedidosData} barColor='#274754' highlightColor='#E8C468' currentMonth='Mar' valuePrefix='' />
+                    </div>
                 </div>
-                <div className='border-r border-zinc-700' />
-                <div className='flex flex-col px-4'>
-                    <span className='text-lg text-zinc-400 text-start'>
-                        Em produção
-                    </span>
-                    <p className='flex flex-row justify-end gap-1 text-lime-500 font-semibold text-lg'>
-                        <TrendingUp />
-                        {inProduction}
-                    </p>
-                </div>
-            </CardDescription>
-            <CardContent className='flex flex-col'>
-                <div className='gap-2 border-t border-zinc-700 content-between' />
-                <CardDescription className='py-2 text-lg text-white'>
-                    {chartDescription}
-                </CardDescription>
-                <Chart config={chartConfig} variant='compact' />
             </CardContent>
         </Card>
     )
