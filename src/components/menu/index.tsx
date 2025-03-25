@@ -1,102 +1,61 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ShoppingCart } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { DoorOpen, LogOut, ShoppingCart } from 'lucide-react';
+import { IProduct, addToCart, getCartItems, calculateCartTotal, formatCurrency } from '@/services/restaurant/services';
 import ProductCard from '@/components/products/ProductCard';
-import { IProduct, CartItem } from '@/services/restaurant/types';
+import { Label } from 'recharts';
 
 interface MenuClientProps {
-  restaurantName: string;
   restaurantId: string;
+  restaurantName: string;
   initialProducts: IProduct[];
   initialCategories: string[];
 }
 
 export default function MenuClient({
-  restaurantName,
   restaurantId,
+  restaurantName,
   initialProducts,
   initialCategories
 }: MenuClientProps) {
   const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [cart, setCart] = useState<CartItem[]>([]);
+
+  // Estados
   const [products] = useState<IProduct[]>(initialProducts);
   const [categories] = useState<string[]>(initialCategories);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [cart, setCart] = useState<{ productId: string, quantity: number }[]>([]);
+  const [tableNumber, setTableNumber] = useState<string | null>(null);
 
-  // Inicializar categoria ativa
+  // Inicializar sem categoria ativa (mostra todos)
   useEffect(() => {
-    if (categories.length > 0 && !activeCategory) {
-      setActiveCategory(categories[0]);
-    }
-  }, [categories, activeCategory]);
+    // Verificar número da mesa no localStorage
+    const tableNum = localStorage.getItem(`table-${restaurantId}`);
+    setTableNumber(tableNum);
 
-  // Carregar carrinho do localStorage ao iniciar
-  useEffect(() => {
-    const savedCart = localStorage.getItem(`cart-${restaurantName}`);
-    if (savedCart) {
-      setCart(JSON.parse(savedCart));
-    }
-  }, [restaurantName]);
+    // Carregar carrinho do localStorage
+    const savedCart = getCartItems(restaurantId);
+    setCart(savedCart);
+  }, [restaurantId]);
 
-  // Salvar carrinho no localStorage quando mudar
-  useEffect(() => {
-    localStorage.setItem(`cart-${restaurantName}`, JSON.stringify(cart));
-  }, [cart, restaurantName]);
-
-  // Filtrar produtos por categoria e termo de busca
-  const filteredProducts = products.filter(product => {
-    const matchesCategory = !activeCategory || product.category === activeCategory;
-    const matchesSearch = !searchTerm ||
+  // Filtrar produtos pelo termo de busca e categoria (se selecionada)
+  const filteredProducts = products.filter(product =>
+    (product.isAvailable) &&
+    (!activeCategory || product.category === activeCategory) &&
+    (!searchTerm ||
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.description.toLowerCase().includes(searchTerm.toLowerCase());
+      product.description.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
-    return matchesCategory && matchesSearch && product.isAvailable !== false;
-  });
-
-  // Função para atualizar o carrinho quando a quantidade de um produto muda
+  // Função para atualizar a quantidade de um produto no carrinho
   const handleQuantityChange = (productId: string, quantity: number) => {
-    setCart(prevCart => {
-      const existingItemIndex = prevCart.findIndex(item => item.productId === productId);
-
-      if (existingItemIndex >= 0) {
-        const updatedCart = [...prevCart];
-        if (quantity === 0) {
-          updatedCart.splice(existingItemIndex, 1);
-        } else {
-          updatedCart[existingItemIndex].quantity = quantity;
-        }
-        return updatedCart;
-      } else if (quantity > 0) {
-        return [...prevCart, { productId, quantity }];
-      }
-
-      return prevCart;
-    });
-  };
-
-  // Quantidade total de itens no carrinho
-  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-
-  // Valor total do pedido
-  const totalValue = cart.reduce((sum, item) => {
-    const product = products.find(p => p._id === item.productId);
-    return sum + (product ? product.price * item.quantity : 0);
-  }, 0);
-
-  // Formata o valor total para o formato de moeda brasileira
-  const formattedTotal = new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(totalValue);
-
-  // Função para navegar para a página do carrinho
-  const goToCart = () => {
-    router.push(`/${restaurantName}/cart`);
+    const updatedCart = addToCart(restaurantId, productId, quantity);
+    setCart(updatedCart);
   };
 
   // Obter a quantidade atual de um produto no carrinho
@@ -105,71 +64,142 @@ export default function MenuClient({
     return cartItem ? cartItem.quantity : 0;
   };
 
+  // Calcular total do carrinho
+  const cartTotal = calculateCartTotal(restaurantId, products);
+
+  // Ir para a página do carrinho
+  const goToCart = () => {
+    router.push(`/restaurant/${restaurantId}/cart`);
+  };
+
+  // Sair do Menu
+  const leaveMenu = () => {
+    router.push('/');
+  };
+
+  // Organizar produtos por categoria
+  const getProductsByCategory = () => {
+    if (activeCategory) {
+      // Se uma categoria estiver selecionada, retornamos apenas ela
+      const products = filteredProducts.filter(product => product.category === activeCategory);
+      return products.length > 0 ? [{ category: activeCategory, products }] : [];
+    } else {
+      // Se nenhuma categoria estiver selecionada, agrupamos produtos por categoria
+      const groupedProducts = categories.map(category => {
+        const products = filteredProducts.filter(product => product.category === category);
+        return { category, products };
+      });
+
+      // Filtramos categorias vazias (sem produtos)
+      return groupedProducts.filter(group => group.products.length > 0);
+    }
+  };
+
+  // Produtos organizados por categoria
+  const productsByCategory = getProductsByCategory();
+
   return (
-    <>
+    <div className="container mx-auto px-4 py-6">
+      {/* Header com informações do restaurante/mesa */}
+      <div className="flex flex-row mb-6 justify-between h-12">
+        <div className='w-1/2'>
+          <h1 className="text-2xl font-bold">{restaurantName}</h1>
+          {tableNumber && (
+            <p className="text-sm text-gray-600">Mesa {tableNumber}</p>
+          )}
+        </div>
+        <div className='flex items-center justify-center'>
+          <Button
+            variant="ghost"
+            onClick={leaveMenu}
+            className='[&_svg]:size-7 [&_svg]:cursor-pointer'
+          >
+            <LogOut />
+          </Button>
+        </div>
+      </div>
+
       {/* Barra de pesquisa */}
       <div className="mb-6">
         <Input
-          type="text"
+          type="search"
           placeholder="Buscar produtos..."
-          className="w-full h-10 border-border rounded-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full"
         />
       </div>
 
       {/* Categorias */}
-      <div className="flex overflow-x-auto mb-6 pb-2 gap-2">
-        {categories.map(category => (
+      <div className="flex overflow-x-auto gap-2 pb-2 mb-6">
+        <Button
+          variant={activeCategory === null ? "default" : "outline"}
+          onClick={() => setActiveCategory(null)}
+          className="whitespace-nowrap"
+        >
+          Ver todos
+        </Button>
+
+        {categories.map((category) => (
           <Button
             key={category}
             variant={activeCategory === category ? "default" : "outline"}
-            className={`rounded-full px-4 py-2 whitespace-nowrap ${activeCategory === category
-              ? "bg-primary text-secondary"
-              : "bg-background text-primary border-border"
-              }`}
             onClick={() => setActiveCategory(category)}
+            className="whitespace-nowrap"
           >
             {category}
           </Button>
         ))}
       </div>
 
-      {/* Lista de produtos */}
-      <div className="space-y-4">
-        {filteredProducts.length > 0 ? (
-          filteredProducts.map((product) => (
-            <ProductCard
-              key={product._id}
-              id={product._id}
-              name={product.name}
-              description={product.description}
-              price={product.price}
-              imageUrl={product.image || "/api/placeholder/400/320"}
-              quantity={(getProductQuantity(product._id))}
-              onQuantityChange={handleQuantityChange}
-            />
-          ))
-        ) : (
-          <div className="text-center py-8">
-            <p className="text-gray-500">Nenhum produto encontrado</p>
+      {/* Lista de produtos agrupados por categoria */}
+      <div className="space-y-8 mb-24">
+        {productsByCategory.length === 0 ? (
+          <div className="text-center py-10">
+            <p className="text-gray-500">Nenhum produto encontrado.</p>
           </div>
+        ) : (
+          productsByCategory.map(group => (
+            <div key={group.category}>
+              {/* Título da categoria */}
+              <h2 className="text-xl font-semibold mb-4 pb-2 border-b">{group.category}</h2>
+
+              {/* Grade de produtos desta categoria */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {group.products.map(product => (
+                  <ProductCard
+                    key={product._id}
+                    product={product}
+                    quantity={getProductQuantity(product._id)}
+                    onQuantityChange={handleQuantityChange}
+                  />
+                ))}
+              </div>
+            </div>
+          ))
         )}
       </div>
 
-      {/* Botão de carrinho - fixo na parte inferior */}
-      {totalItems > 0 && (
-        <div className="fixed bottom-6 left-0 right-0 flex justify-center">
+      {/* Botão do carrinho fixo no rodapé */}
+      {cart.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-lg">
           <Button
             onClick={goToCart}
-            variant="default"
-            className="flex items-center gap-2 px-6 py-4 rounded-full bg-primary text-secondary shadow-lg"
+            className="w-full h-14 flex justify-between items-center"
           >
-            <ShoppingCart size={20} />
-            <span>Ver pedido • {totalItems} {totalItems === 1 ? 'item' : 'itens'} • {formattedTotal}</span>
+            <div className="flex items-center">
+              <ShoppingCart className="mr-2" />
+              <span>Ver Carrinho</span>
+            </div>
+            <div className="flex items-center">
+              <span className="bg-white text-primary rounded-full px-2 py-1 text-sm mr-2">
+                {cart.reduce((total, item) => total + item.quantity, 0)} itens
+              </span>
+              <span>{formatCurrency(cartTotal)}</span>
+            </div>
           </Button>
         </div>
       )}
-    </>
+    </div>
   );
 }

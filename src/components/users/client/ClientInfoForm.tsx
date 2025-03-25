@@ -23,7 +23,7 @@ import AvatarUpload from '@/components/avatarUpload/AvatarUpload';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 
 // URL do backend - idealmente isso deveria vir de uma variável de ambiente
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 export const formSchema = z.object({
     firstName: z.string().min(2, {
