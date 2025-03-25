@@ -37,6 +37,8 @@
     "dialog": "^0.3.1",
     "framer-motion": "^12.4.7",
     "jose": "^5.9.6",
+    "js-cookie": "^3.0.5",
+    "jwt-decode": "^4.0.0",
     "lucide-react": "^0.468.0",
     "next": "15.1.7",
     "next-auth": "5.0.0-beta.25",
@@ -56,6 +58,7 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
+    "@types/js-cookie": "^3.0.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

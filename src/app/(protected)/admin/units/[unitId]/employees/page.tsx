@@ -15,6 +15,11 @@ export default function EmployeesPage() {
     const isAuthorized = authData?.isAuthenticated &&
         (authData?.user?.role === 'ADMIN' || authData?.user?.role === 'MANAGER');
 
+    console.log("Auth data:", {
+        isAuthenticated: authData?.isAuthenticated,
+        userRole: authData?.user?.role,
+    });
+
     if (isAuthLoading) {
         return (
             <div className="container mx-auto px-4 py-8">
