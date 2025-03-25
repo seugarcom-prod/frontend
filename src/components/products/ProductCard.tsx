@@ -1,84 +1,99 @@
-import { Plus, Minus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+// components/products/ProductCard.tsx
+'use client';
 
-export interface ProductCardProps {
-    id: string;
-    name: string;
-    description: string;
-    price: number;
-    imageUrl: string;
+import React from 'react';
+import Image from 'next/image';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Plus, Minus } from 'lucide-react';
+import { IProduct } from '@/services/restaurant/services';
+
+interface ProductCardProps {
+    product: IProduct;
     quantity: number;
-    onQuantityChange: (id: string, quantity: number) => void;
+    onQuantityChange: (productId: string, quantity: number) => void;
 }
 
-export default function ProductCard({
-    id,
-    name,
-    description,
-    price,
-    imageUrl,
-    quantity = 0,
-    onQuantityChange
-}: ProductCardProps) {
-    const handleIncrement = () => {
-        onQuantityChange(id, quantity + 1);
+const ProductCard: React.FC<ProductCardProps> = ({ product, quantity, onQuantityChange }) => {
+    // Função para aumentar a quantidade
+    const increaseQuantity = () => {
+        onQuantityChange(product._id, quantity + 1);
     };
 
-    const handleDecrement = () => {
+    // Função para diminuir a quantidade
+    const decreaseQuantity = () => {
         if (quantity > 0) {
-            onQuantityChange(id, quantity - 1);
+            onQuantityChange(product._id, quantity - 1);
         }
     };
 
-    // Formata o preço para o formato de moeda brasileira
-    const formattedPrice = new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-    }).format(price);
+    // Formatar preço
+    const formatPrice = (price: number) => {
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        }).format(price);
+    };
 
     return (
-        <div className="border border-border rounded-lg shadow-md overflow-hidden bg-background mb-4">
-            <div className="flex flex-col md:flex-row">
-                <div className="w-full md:w-1/3 h-48">
-                    <img
-                        src={imageUrl}
-                        alt={name}
-                        className="w-full h-full object-cover"
+        <Card className="overflow-hidden h-full flex flex-col border border-gray-300 shadow-md">
+            {product.image && (
+                <div className="relative h-24 w-full">
+                    <Image
+                        src={product.image}
+                        alt={product.name}
+                        fill
+                        style={{ objectFit: 'cover' }}
                     />
                 </div>
-                <div className="p-4 flex-1">
-                    <h3 className="font-medium text-primary text-lg">{name}</h3>
-                    <p className="text-gray-500 text-sm mt-2 line-clamp-2">{description}</p>
+            )}
 
-                    <div className="flex justify-between items-center mt-4">
-                        <span className="text-primary font-medium">{formattedPrice}</span>
+            <CardContent className="p-4 flex-grow flex flex-col">
+                <div className="mb-2 flex-grow">
+                    <h3 className="font-medium text-lg">{product.name}</h3>
+                    <p className="text-gray-500 text-sm line-clamp-2">{product.description}</p>
+                </div>
 
-                        <div className="flex items-center">
-                            {quantity > 0 && (
-                                <>
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        className="h-8 w-8 rounded-full border border-border"
-                                        onClick={handleDecrement}
-                                    >
-                                        <Minus size={16} />
-                                    </Button>
-                                    <span className="mx-3 text-primary">{quantity}</span>
-                                </>
-                            )}
+                <div className="flex justify-between items-center mt-auto">
+                    <span className="font-bold">{formatPrice(product.price)}</span>
+
+                    <div className="flex items-center">
+                        {quantity > 0 ? (
+                            <>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={decreaseQuantity}
+                                >
+                                    <Minus size={14} />
+                                </Button>
+
+                                <span className="mx-2 w-6 text-center">{quantity}</span>
+
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={increaseQuantity}
+                                >
+                                    <Plus size={14} />
+                                </Button>
+                            </>
+                        ) : (
                             <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8 rounded-full border border-border bg-primary text-secondary hover:bg-primary-foreground"
-                                onClick={handleIncrement}
+                                variant="default"
+                                size="sm"
+                                onClick={increaseQuantity}
                             >
-                                <Plus size={16} />
+                                Adicionar
                             </Button>
-                        </div>
+                        )}
                     </div>
                 </div>
-            </div>
-        </div>
+            </CardContent>
+        </Card>
     );
-}
+};
+
+export default ProductCard;

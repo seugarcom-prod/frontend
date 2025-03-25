@@ -2,14 +2,16 @@ import React from 'react'
 import Link from 'next/link'
 import { Card, CardContent } from '../ui/card'
 import { User2, Store, UserCog, UserCog2 } from 'lucide-react'
+import { useParams } from 'next/navigation';
 
 export function ActionCards() {
-    const restaurantName = "lanchonete-do-bio";
+    const params = useParams();
+    const unitId = params.unitId as string;
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Gerenciar funcionários */}
-            <Link href="/admin/funcionarios">
+            <Link href={`/admin/units/67da463fc903f957b6309368/employees`}>
                 <Card className="hover:shadow-md transition-shadow border border-border bg-transparent">
                     <CardContent className="p-6">
                         <div className="flex items-start gap-4">

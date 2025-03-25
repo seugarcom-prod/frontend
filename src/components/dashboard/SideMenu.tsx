@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { useParams, usePathname } from "next/navigation"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -11,7 +11,6 @@ import { useTheme } from "next-themes"
 import { useSidebar } from "@/components/ui/sidebar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu"
 
-// Define the navigation items
 interface NavItem {
     title: string
     href: string
@@ -19,44 +18,14 @@ interface NavItem {
     color: string
 }
 
-const items: NavItem[] = [
-    {
-        title: "Início",
-        href: "/admin",
-        icon: <Home size={20} />,
-        color: "#ef4444"
-    },
-    {
-        title: "Funcionários",
-        href: "/funcionarios",
-        icon: <UserCog2 size={20} />,
-        color: "#84cc16"
-    },
-    {
-        title: "Unidades",
-        href: "/restaurant/unit",
-        icon: <Store size={20} />,
-        color: "#d946ef"
-    },
-    {
-        title: "Promoções",
-        href: "/promocoes",
-        icon: <BadgePercent size={20} />,
-        color: "#f97316"
-    },
-    {
-        title: "Estatísticas",
-        href: "/estatisticas",
-        icon: <BarChart size={20} />,
-        color: "#06b6d4"
-    }
-]
 
 interface SidebarProps {
     className?: string
 }
 
 export function Sidebar({ className }: SidebarProps) {
+    const params = useParams();
+    const unitId = params.unitId as string;
     const pathname = usePathname()
     const { setTheme } = useTheme()
     const { isOpen } = useSidebar();
@@ -65,6 +34,40 @@ export function Sidebar({ className }: SidebarProps) {
     if (!isOpen) {
         return null;
     }
+
+
+    const items: NavItem[] = [
+        {
+            title: "Início",
+            href: "/admin",
+            icon: <Home size={20} />,
+            color: "#ef4444"
+        },
+        {
+            title: "Funcionários",
+            href: `/admin/units/${unitId ? unitId : 1}/employees`,
+            icon: <UserCog2 size={20} />,
+            color: "#84cc16"
+        },
+        {
+            title: "Unidades",
+            href: "/restaurant/unit",
+            icon: <Store size={20} />,
+            color: "#d946ef"
+        },
+        {
+            title: "Promoções",
+            href: "/promocoes",
+            icon: <BadgePercent size={20} />,
+            color: "#f97316"
+        },
+        {
+            title: "Estatísticas",
+            href: "/estatisticas",
+            icon: <BarChart size={20} />,
+            color: "#06b6d4"
+        }
+    ]
 
     return (
         <div className={cn("fixed top-0 left-0 w-72 h-screen bg-background border-r border-border", className)}>
@@ -95,7 +98,7 @@ export function Sidebar({ className }: SidebarProps) {
 
                     <div className="flex flex-row items-center justify-between">
                         <div>
-                            <Link href="/" className="flex items-center gap-4 px-5 py-4 text-primary cursor-pointer">
+                            <Link href="/login" className="flex items-center gap-4 px-5 py-4 text-primary cursor-pointer">
                                 <LogOut size={20} className="text-gray-500" />
                                 <span>Desconectar</span>
                             </Link>

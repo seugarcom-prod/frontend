@@ -1,119 +1,100 @@
-"use client"
+"use client";
+
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { useGuestLogin } from "@/hooks/useAuth";
 import { ArrowRight } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { formatCpf } from "@/utils";
+import { isValidCPF } from "@/utils/CpfValidate";
 
-export function GuestLogin() {
+interface GuestLoginProps {
+    onLoginSuccess?: () => void;
+}
+
+export function GuestLogin({ onLoginSuccess }: GuestLoginProps) {
     const [cpf, setCpf] = useState("");
     const [email, setEmail] = useState("");
-    const [error, setError] = useState("");
 
-    const router = useRouter();
-    const apiUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL;
+    const { mutate: guestLogin, isPending: isLoading, error } = useGuestLogin();
 
-    // Define guest login mutation with React Query
-    const guestLoginMutation = useMutation({
-        mutationFn: async (credentials: { cpf: string; email: string }) => {
-            const response = await fetch(`${apiUrl}/guest`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(credentials),
-                credentials: 'include',
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || "Erro no login de convidado.");
-            }
-
-            return response.json();
-        },
-        onSuccess: (data) => {
-            // Store the session token
-            if (data.sessionToken) {
-                localStorage.setItem("session", data.sessionToken);
-            }
-
-            // Redirect to appropriate route
-            router.push(data.redirectRoute || "/admin");
-        },
-        onError: (error) => {
-            setError(error instanceof Error ? error.message : "Erro no login de convidado. Verifique seus dados.");
-            console.error("Erro no login de convidado:", error);
-        }
-    });
-
-    const handleGuestLogin = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        guestLoginMutation.mutate({ cpf, email });
+    const handleCPFChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const formattedCPF = formatCpf(e.target.value);
+        setCpf(formattedCPF);
     };
 
-    // CPF mask function
-    const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let value = e.target.value;
 
-        // Remove caracteres não numéricos
-        value = value.replace(/\D/g, '');
+    const handleGuestLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
 
-        // Aplica a máscara: XXX.XXX.XXX-XX
-        if (value.length <= 11) {
-            value = value.replace(/(\d{3})(\d)/, '$1.$2');
-            value = value.replace(/(\d{3})(\d)/, '$1.$2');
-            value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+        // Validar CPF
+        if (!isValidCPF(cpf)) {
+            alert("CPF inválido");
+            return;
         }
 
-        setCpf(value);
+        // Validar email
+        if (!/\S+@\S+\.\S+/.test(email)) {
+            alert("Email inválido");
+            return;
+        }
+
+        guestLogin(
+            { cpf, email },
+            {
+                onSuccess: () => {
+                    if (onLoginSuccess) {
+                        onLoginSuccess();
+                    }
+                }
+            }
+        );
     };
 
     return (
-        <form onSubmit={handleGuestLogin} id="login-guest" className="w-full">
-            <div className="flex flex-col space-y-6">
-                <div className="flex flex-col gap-2">
-                    <Label htmlFor="guest-cpf" className="text-gray-700">CPF</Label>
+        <form onSubmit={handleGuestLogin}>
+            <div className="space-y-4">
+                <div className="space-y-2">
+                    <Label htmlFor="cpf">CPF</Label>
                     <Input
-                        type="text"
-                        id="guest-cpf"
-                        name="cpf"
+                        id="cpf"
                         placeholder="Digite seu CPF"
                         required
                         value={cpf}
-                        onChange={handleCpfChange}
-                        maxLength={14}
-                        className="p-3 border border-border rounded-md text-secondary"
+                        onChange={handleCPFChange}
                     />
                 </div>
-                <div className="flex flex-col gap-2">
-                    <Label htmlFor="guest-email" className="text-gray-700">Email</Label>
+
+                <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
                     <Input
+                        id="email"
                         type="email"
-                        id="guest-email"
-                        name="email"
                         placeholder="Digite seu e-mail"
                         required
-                        autoComplete="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="p-3 border border-border rounded-md text-secondary"
                     />
                 </div>
-                {error && <p className="text-sm text-red-500">{error}</p>}
-            </div>
-            <div className="flex justify-end items-center mt-6">
-                <Button
-                    type="submit"
-                    className="bg-secondary text-white px-6 py-2 rounded-md hover:bg-gray-800 inline-flex items-center"
-                    disabled={guestLoginMutation.isPending}
-                    aria-disabled={guestLoginMutation.isPending}
-                >
-                    {guestLoginMutation.isPending ? "Entrando..." : "Entrar"}
-                    <ArrowRight className="ml-2" />
-                </Button>
+
+                {error && (
+                    <div className="text-red-500 text-sm mt-2">
+                        {error instanceof Error ? error.message : "Erro ao fazer login como convidado"}
+                    </div>
+                )}
+
+                <div className="flex items-center justify-between py-4">
+                    <div />
+                    <Button
+                        type="submit"
+                        className="w-36 bg-primary text-secondary hover:bg-gray-300 hover:text-primary"
+                        disabled={isLoading}
+                    >
+                        {isLoading ? "Entrando..." : "Entrar"}
+                        <ArrowRight />
+                    </Button>
+                </div>
             </div>
         </form>
     );

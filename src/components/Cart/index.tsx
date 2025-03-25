@@ -1,269 +1,373 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Send } from "lucide-react";
-import CartItem from "./CartItem";
-
-// Tipo para representar um produto
-interface Product {
-    id: string;
-    name: string;
-    description: string;
-    price: number;
-    imageUrl: string;
-    category: string;
-}
-
-// Tipo para representar um item no carrinho
-interface CartItem {
-    productId: string;
-    quantity: number;
-}
+import React, { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent } from '@/components/ui/card';
+import { Trash2, Plus, Minus, ArrowLeft } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import {
+    IProduct,
+    getCartItems,
+    updateCartItem,
+    removeFromCart,
+    calculateCartTotal,
+    formatCurrency,
+    getRestaurantById
+} from '@/services/restaurant/services';
 
 export default function CartPage() {
+    const params = useParams();
+    const restaurantId = params.restaurantId as string;
     const router = useRouter();
-    const searchParams = useSearchParams();
 
-    const tableNumber = searchParams.get('table') || "desconhecida";
-    const cartParam = searchParams.get('cart') || "[]";
+    // Estados
+    const [restaurant, setRestaurant] = useState<any>(null);
+    const [products, setProducts] = useState<IProduct[]>([]);
+    const [cart, setCart] = useState<{ productId: string, quantity: number }[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [tableNumber, setTableNumber] = useState<string | null>(null);
 
-    const [cart, setCart] = useState<CartItem[]>([]);
-    const [observations, setObservations] = useState("");
+    // Estados para informações do pedido
+    const [orderType, setOrderType] = useState<'local' | 'takeaway'>('local');
+    const [observations, setObservations] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [submissionSuccess, setSubmissionSuccess] = useState(false);
 
-    // Dados de exemplo - em uma aplicação real, você buscaria isso do backend
-    const products: Product[] = [
-        {
-            id: "1",
-            name: "X-Tudo",
-            description: "Hambúrguer artesanal, queijo cheddar, bacon, alface, tomate, cebola caramelizada e molho especial da casa.",
-            price: 29.90,
-            imageUrl: "/api/placeholder/400/320",
-            category: "Hambúrgueres"
-        },
-        {
-            id: "2",
-            name: "Batata Frita com Cheddar e Bacon",
-            description: "Porção de batatas fritas crocantes cobertas com cheddar cremoso e bacon crocante.",
-            price: 19.90,
-            imageUrl: "/api/placeholder/400/320",
-            category: "Acompanhamentos"
-        },
-        {
-            id: "3",
-            name: "Coca-Cola 350ml",
-            description: "Lata de Coca-Cola gelada.",
-            price: 6.50,
-            imageUrl: "/api/placeholder/400/320",
-            category: "Bebidas"
-        },
-        {
-            id: "4",
-            name: "Cheesecake de Frutas Vermelhas",
-            description: "Delicioso cheesecake com cobertura de frutas vermelhas frescas.",
-            price: 15.90,
-            imageUrl: "/api/placeholder/400/320",
-            category: "Sobremesas"
-        }
-    ];
-
-    // Parse do parâmetro do carrinho quando a página é carregada
+    // Carregar dados iniciais
     useEffect(() => {
-        try {
-            const parsedCart = JSON.parse(decodeURIComponent(cartParam));
-            if (Array.isArray(parsedCart)) {
-                setCart(parsedCart);
-            }
-        } catch (error) {
-            console.error("Erro ao analisar os dados do carrinho:", error);
-        }
-    }, [cartParam]);
+        const loadCartData = async () => {
+            try {
+                setIsLoading(true);
 
-    // Função para atualizar a quantidade de um produto no carrinho
-    const handleQuantityChange = (productId: string, quantity: number) => {
-        setCart(prevCart => {
-            const existingItemIndex = prevCart.findIndex(item => item.productId === productId);
+                // 1. Carregar dados do restaurante
+                const restaurantData = await getRestaurantById(restaurantId);
+                setRestaurant(restaurantData);
 
-            if (existingItemIndex >= 0) {
-                const updatedCart = [...prevCart];
-                if (quantity === 0) {
-                    updatedCart.splice(existingItemIndex, 1);
-                } else {
-                    updatedCart[existingItemIndex].quantity = quantity;
+                // 2. Carregar carrinho
+                const cartItems = getCartItems(restaurantId);
+                setCart(cartItems);
+
+                // Se carrinho vazio, redirecionar para menu
+                if (cartItems.length === 0) {
+                    router.push(`/restaurant/${restaurantId}/menu`);
+                    return;
                 }
-                return updatedCart;
+
+                // 3. Carregar produtos mock
+                setProducts([
+                    {
+                        _id: 'prod1',
+                        name: 'X-Burger',
+                        description: 'Hambúrguer com queijo, alface e tomate',
+                        price: 25.90,
+                        quantity: 0,
+                        image: '/xtudo.jpg',
+                        category: 'Hambúrgueres',
+                        isAvailable: true
+                    },
+                    {
+                        _id: 'prod2',
+                        name: 'X-Bacon',
+                        description: 'Hambúrguer com queijo, bacon, alface e tomate',
+                        quantity: 0,
+                        price: 28.90,
+                        image: '/burger.jpg',
+                        category: 'Hambúrgueres',
+                        isAvailable: true
+                    },
+                    {
+                        _id: 'prod3',
+                        name: 'Batata Frita',
+                        description: 'Porção de batatas fritas crocantes',
+                        quantity: 0,
+                        price: 15.90,
+                        image: '/batatafrita.jpg',
+                        category: 'Acompanhamentos',
+                        isAvailable: true
+                    },
+                    {
+                        _id: 'prod4',
+                        name: 'Refrigerante Lata',
+                        description: 'Lata 350ml',
+                        quantity: 0,
+                        price: 6.90,
+                        image: '/cocacola.jpg',
+                        category: 'Bebidas',
+                        isAvailable: true
+                    },
+                    {
+                        _id: 'prod5',
+                        name: 'Suco Natural',
+                        description: '300ml de suco de fruta natural',
+                        quantity: 0,
+                        price: 9.90,
+                        image: '/suconatural.jpg',
+                        category: 'Bebidas',
+                        isAvailable: true
+                    },
+                    {
+                        _id: 'prod6',
+                        name: 'Pudim',
+                        description: 'Delicioso pudim de leite condensado',
+                        quantity: 0,
+                        price: 12.90,
+                        image: '/pudim.jpg',
+                        category: 'Sobremesas',
+                        isAvailable: true
+                    }
+                ]);
+
+                // 4. Verificar número da mesa
+                const tableNum = localStorage.getItem(`table-${restaurantId}`);
+                setTableNumber(tableNum);
+
+            } catch (error: any) {
+                console.error("Erro ao carregar dados do carrinho:", error);
+                setError(error.message || "Ocorreu um erro ao carregar o carrinho");
+            } finally {
+                setIsLoading(false);
             }
-
-            return prevCart;
-        });
-    };
-
-    // Produtos do carrinho com detalhes
-    const cartProducts = cart.map(item => {
-        const product = products.find(p => p.id === item.productId);
-        return {
-            ...product,
-            quantity: item.quantity
         };
-    }).filter(item => item !== undefined) as (Product & { quantity: number })[];
 
-    // Calculando o valor total
-    const subtotal = cartProducts.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const serviceFee = subtotal * 0.10; // Taxa de serviço de 10%
-    const total = subtotal + serviceFee;
+        if (restaurantId) {
+            loadCartData();
+        }
+    }, [restaurantId, router]);
 
-    // Formatando valores para moeda brasileira
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-        }).format(value);
+    // Atualizar quantidade de um item
+    const handleQuantityChange = (productId: string, newQuantity: number) => {
+        if (newQuantity <= 0) {
+            handleRemoveItem(productId);
+        } else {
+            const updatedCart = updateCartItem(restaurantId, productId, newQuantity);
+            setCart(updatedCart);
+        }
     };
 
-    // Função para voltar ao cardápio
+    // Remover um item do carrinho
+    const handleRemoveItem = (productId: string) => {
+        const updatedCart = removeFromCart(restaurantId, productId);
+        setCart(updatedCart);
+
+        // Se o carrinho ficar vazio, redirecionar para o menu
+        if (updatedCart.length === 0) {
+            router.push(`/restaurant/${restaurantId}/menu`);
+        }
+    };
+
+    // Obter informações de um produto pelo ID
+    const getProductById = (productId: string): IProduct | undefined => {
+        return products.find(product => product._id === productId);
+    };
+
+    // Calcular total do carrinho
+    const getCartTotal = () => {
+        return calculateCartTotal(restaurantId, products);
+    };
+
+    // Voltar para o menu
     const goBackToMenu = () => {
-        router.push(`/menu?table=${tableNumber}`);
+        router.push(`/restaurant/${restaurantId}/menu`);
     };
 
-    // Função para enviar o pedido
-    const submitOrder = () => {
+    // Finalizar pedido
+    const handleCheckout = () => {
         setIsSubmitting(true);
 
-        // Simulando envio para API
+        // Simular chamada API
         setTimeout(() => {
-            // Dados que seriam enviados para a API
-            const orderData = {
-                tableNumber,
-                items: cartProducts.map(item => ({
-                    productId: item.id,
-                    name: item.name,
-                    quantity: item.quantity,
-                    unitPrice: item.price
-                })),
-                observations,
-                subtotal,
-                serviceFee,
-                total,
-                timestamp: new Date().toISOString()
-            };
+            // Criar um ID de pedido falso
+            const orderId = `order_${Date.now()}`;
 
-            console.log("Pedido enviado:", orderData);
+            // Limpar carrinho
+            localStorage.removeItem(`cart-${restaurantId}`);
 
-            setIsSubmitting(false);
-            setSubmissionSuccess(true);
-
-            // Após 3 segundos, retorna ao cardápio
-            setTimeout(() => {
-                router.push(`/menu?table=${tableNumber}`);
-            }, 3000);
-        }, 2000);
+            // Redirecionar para confirmação
+            router.push(`/restaurant/${restaurantId}/order/${orderId}`);
+        }, 1500);
     };
 
-    // Se não houver itens no carrinho e não estiver em estado de sucesso, voltar ao menu
-    useEffect(() => {
-        if (cart.length === 0 && !submissionSuccess) {
-            router.push(`/menu?table=${tableNumber}`);
-        }
-    }, [cart, submissionSuccess]);
-
-    if (submissionSuccess) {
+    // Renderização de estados de carregamento e erro
+    if (isLoading) {
         return (
-            <div className="container mx-auto px-4 py-10 max-w-2xl flex flex-col items-center justify-center min-h-screen">
-                <div className="text-center">
-                    <div className="flex justify-center mb-4">
-                        <div className="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center">
-                            <Send size={24} />
-                        </div>
+            <div className="container mx-auto px-4 py-8">
+                <div className="animate-pulse">
+                    <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+                    <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
+
+                    <div className="space-y-4 mb-8">
+                        {[1, 2, 3].map(i => (
+                            <div key={i} className="border rounded-lg p-4">
+                                <div className="flex justify-between items-center">
+                                    <div>
+                                        <div className="h-5 bg-gray-200 rounded w-40 mb-2"></div>
+                                        <div className="h-4 bg-gray-200 rounded w-24"></div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-8 w-8 bg-gray-200 rounded"></div>
+                                        <div className="h-6 w-8 bg-gray-200 rounded"></div>
+                                        <div className="h-8 w-8 bg-gray-200 rounded"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
-                    <h1 className="text-2xl font-bold text-primary mb-2">Pedido enviado com sucesso!</h1>
-                    <p className="text-gray-500 mb-6">Seu pedido foi recebido e está sendo preparado.</p>
-                    <p className="text-primary font-medium mb-2">Mesa {tableNumber}</p>
-                    <p className="text-gray-500">Em breve um atendente trará seu pedido.</p>
+
+                    <div className="h-40 bg-gray-200 rounded mb-8"></div>
+                    <div className="h-12 bg-gray-200 rounded"></div>
                 </div>
             </div>
         );
     }
 
+    if (error) {
+        return (
+            <div className="container mx-auto px-4 py-8 text-center">
+                <div className="bg-red-100 text-red-800 p-4 rounded-lg mb-6">
+                    <h2 className="text-lg font-semibold mb-2">Erro</h2>
+                    <p>{error}</p>
+                </div>
+                <Button onClick={goBackToMenu}>Voltar ao Menu</Button>
+            </div>
+        );
+    }
+
+    // Renderização principal
     return (
-        <div className="container mx-auto px-4 py-6 max-w-2xl pb-32">
-            <div className="flex items-center mb-6">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="mr-2"
-                    onClick={goBackToMenu}
-                >
-                    <ArrowLeft />
-                </Button>
-                <h1 className="text-xl font-bold text-primary">Seu pedido</h1>
-            </div>
-
+        <div className="container mx-auto px-4 py-6 pb-24">
+            {/* Cabeçalho */}
             <div className="mb-6">
-                <p className="text-gray-500 text-sm mb-2">Mesa {tableNumber}</p>
+                <Button variant="ghost" onClick={goBackToMenu} className="mb-2">
+                    <ArrowLeft size={16} className="mr-1" /> Voltar ao Menu
+                </Button>
+                <h1 className="text-2xl font-bold">Seu Pedido</h1>
+                {restaurant && (
+                    <p className="text-gray-600">
+                        {restaurant.name}
+                        {tableNumber && ` - Mesa ${tableNumber}`}
+                    </p>
+                )}
             </div>
 
-            {/* Lista de itens no carrinho */}
-            <div className="space-y-2">
-                {cartProducts.map((item) => (
-                    <CartItem
-                        key={item.id}
-                        id={item.id}
-                        name={item.name}
-                        imageUrl={item.imageUrl}
-                        price={item.price}
-                        quantity={item.quantity}
-                        onQuantityChange={handleQuantityChange}
+            {/* Lista de itens do carrinho */}
+            <div className="space-y-4 mb-8">
+                {cart.map((item) => {
+                    const product = getProductById(item.productId);
+
+                    // Se não encontrar o produto, não mostra o item
+                    if (!product) return null;
+
+                    return (
+                        <Card key={item.productId}>
+                            <CardContent className="p-4">
+                                <div className="flex justify-between items-center">
+                                    <div className="flex-1">
+                                        <h3 className="font-medium">{product.name}</h3>
+                                        <p className="text-sm text-gray-500">{formatCurrency(product.price)}</p>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            onClick={() => handleQuantityChange(item.productId, item.quantity - 1)}
+                                        >
+                                            <Minus size={14} />
+                                        </Button>
+
+                                        <span className="w-8 text-center">{item.quantity}</span>
+
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            onClick={() => handleQuantityChange(item.productId, item.quantity + 1)}
+                                        >
+                                            <Plus size={14} />
+                                        </Button>
+
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="text-red-500"
+                                            onClick={() => handleRemoveItem(item.productId)}
+                                        >
+                                            <Trash2 size={16} />
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <div className="mt-2 text-right">
+                                    <span className="font-medium">
+                                        {formatCurrency(product.price * item.quantity)}
+                                    </span>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    );
+                })}
+            </div>
+
+            {/* Opções de atendimento */}
+            <Card className="mb-6">
+                <CardContent className="p-4">
+                    <h3 className="font-medium mb-4">Tipo de Pedido</h3>
+
+                    <RadioGroup
+                        value={orderType}
+                        onValueChange={(value: string) => setOrderType(value as 'local' | 'takeaway')}
+                        className="space-y-3"
+                    >
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="local" id="local" />
+                            <Label htmlFor="local" className="font-medium">Consumir no local</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="takeaway" id="takeaway" />
+                            <Label htmlFor="takeaway" className="font-medium">Para viagem</Label>
+                        </div>
+                    </RadioGroup>
+
+                </CardContent>
+            </Card>
+
+            {/* Observações */}
+            <Card className="mb-6">
+                <CardContent className="p-4">
+                    <h3 className="font-medium mb-3">Observações</h3>
+                    <Textarea
+                        placeholder="Alguma observação para seu pedido? (Ex: sem cebola, sem alho, etc)"
+                        value={observations}
+                        onChange={(e) => setObservations(e.target.value)}
+                        className="w-full"
                     />
-                ))}
-            </div>
-
-            {/* Campo de observações */}
-            <div className="mt-6">
-                <h3 className="font-medium text-primary mb-2">Observações</h3>
-                <Textarea
-                    placeholder="Alguma observação sobre seu pedido? (Ex: sem cebola, ponto da carne, etc)"
-                    className="border-border"
-                    value={observations}
-                    onChange={(e: any) => setObservations(e.target.value)}
-                />
-            </div>
+                </CardContent>
+            </Card>
 
             {/* Resumo do pedido */}
-            <div className="mt-8 border-t border-border pt-4">
-                <div className="flex justify-between mb-2">
-                    <span className="text-gray-500">Subtotal</span>
-                    <span className="text-primary">{formatCurrency(subtotal)}</span>
-                </div>
-                <div className="flex justify-between mb-2">
-                    <span className="text-gray-500">Taxa de serviço (10%)</span>
-                    <span className="text-primary">{formatCurrency(serviceFee)}</span>
-                </div>
-                <div className="flex justify-between font-medium text-lg mt-4">
-                    <span className="text-primary">Total</span>
-                    <span className="text-primary">{formatCurrency(total)}</span>
-                </div>
-            </div>
+            <Card className="mb-8">
+                <CardContent className="p-4">
+                    <h3 className="font-medium mb-4">Resumo</h3>
 
-            {/* Botão de enviar pedido - fixo na parte inferior */}
-            <div className="fixed bottom-6 left-0 right-0 flex justify-center">
+                    <div className="space-y-2">
+                        <div className="flex justify-between">
+                            <span>Total</span>
+                            <span>{formatCurrency(getCartTotal())}</span>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Botão de finalizar pedido */}
+            <div className="fixed bottom-6 left-0 right-0 px-4 flex justify-center">
                 <Button
-                    onClick={submitOrder}
-                    disabled={isSubmitting || cart.length === 0}
-                    variant="default"
-                    className="flex items-center gap-2 px-6 py-4 rounded-full bg-primary text-secondary shadow-lg w-full max-w-md"
+                    onClick={handleCheckout}
+                    className="w-full max-w-md py-6 h-12 text-lg"
+                    disabled={isSubmitting}
                 >
-                    {isSubmitting ? (
-                        "Enviando pedido..."
-                    ) : (
-                        <>
-                            <Send size={20} />
-                            <span>Enviar pedido • {formatCurrency(total)}</span>
-                        </>
-                    )}
+                    {isSubmitting ? "Processando..." : `Finalizar Pedido • ${formatCurrency(getCartTotal())}`}
                 </Button>
             </div>
         </div>

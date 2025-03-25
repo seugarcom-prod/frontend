@@ -1,91 +1,111 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import Image from "next/image";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Logo from "@/../public/Logo.svg";
-import { UserLogin, GuestLogin } from "./index";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { UserLogin } from '@/components/login/UserLogin';
+import { GuestLogin } from '@/components/login/GuestLogin';
+import { useSaveTableInfo } from '@/hooks/useAuth';
+import Image from 'next/image';
+import Link from 'next/link';
 
-type User = 'user' | 'guest';
+export default function LoginPage() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const saveTableInfo = useSaveTableInfo();
 
-interface LoginProps {
-    userType?: User;
-}
+    // Obter parâmetros da URL
+    const restaurantId = searchParams.get('restaurantId');
+    const tableId = searchParams.get('tableId');
 
-export function LoginPage({ userType = 'guest' }: LoginProps) {
-    const redirect = useRouter();
-    const [currentUserType, setCurrentUserType] = useState<User>(userType);
+    // Usar um efeito para salvar informações quando os parâmetros estiverem disponíveis
+    useEffect(() => {
+        if (restaurantId && tableId) {
+            saveTableInfo(restaurantId, tableId);
+        }
+    }, [restaurantId, tableId, saveTableInfo]);
 
-    const handleTabChange = (value: string) => {
-        setCurrentUserType(value as User);
-    }
+    // Função para continuar como convidado sem login
+    const continueWithoutLogin = () => {
+        if (restaurantId) {
+            // Criar um token de convidado genérico
+            const guestToken = `guest_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+            localStorage.setItem('guest_token', guestToken);
+            localStorage.setItem('guest_data', JSON.stringify({
+                firstName: `Mesa ${tableId || 'Desconhecida'}`,
+                isGuest: true
+            }));
+
+            // Redirecionar para o menu
+            router.push(`/restaurant/${restaurantId}/menu`);
+        } else {
+            router.push('/');
+        }
+    };
 
     return (
-        <div className="min-h-screen w-full flex flex-col md:flex-row bg-dark-primary-default">
+        <div className="min-h-screen w-full flex flex-col md:flex-row bg-secondary">
             {/* Lado esquerdo - formulário de login */}
-            <div className="w-full md:w-1/3 flex items-center justify-center p-4">
-                <div className="w-full max-w-md bg-dark-primary-default border border-border rounded-md shadow-sm p-8">
-                    <h1 className="text-xl text-dark-card-default font-medium mb-6">Entre na plataforma</h1>
+            <div className="w-full md:w-1/2 flex items-center justify-center p-8">
+                <div className="w-full max-w-md bg-white p-8 rounded-lg shadow-md">
+                    <h1 className="text-2xl font-bold mb-6">Bem-vindo</h1>
 
-                    <Tabs
-                        defaultValue={currentUserType}
-                        className="w-full mb-6"
-                        onValueChange={handleTabChange}
-                    >
-                        <TabsList className="grid w-full grid-cols-2 bg-transparent border border-border rounded-md items-center justify-center">
-                            <TabsTrigger value="user" className="data-[state=active]:bg-secondary data-[state=active]:text-white">Usuário</TabsTrigger>
-                            <TabsTrigger value="guest" className="data-[state=active]:bg-secondary data-[state=active]:text-white">Convidado</TabsTrigger>
+                    {/* Mostrar informações da mesa se vier de um QR code */}
+                    {restaurantId && tableId && (
+                        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                            <p className="text-sm">
+                                <span className="font-medium">Restaurante ID:</span> {restaurantId}
+                            </p>
+                            <p className="text-sm">
+                                <span className="font-medium">Mesa:</span> {tableId}
+                            </p>
+                        </div>
+                    )}
+
+                    <Tabs defaultValue="user" className="w-full">
+                        <TabsList className="grid w-full grid-cols-2 mb-6">
+                            <TabsTrigger value="user">Usuário</TabsTrigger>
+                            <TabsTrigger value="guest">Convidado</TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value="user" className="mt-4">
-                            <div className="mb-6">
-                                <UserLogin />
-                            </div>
+                        <TabsContent value="user">
+                            <UserLogin />
                         </TabsContent>
 
-                        <TabsContent value="guest" className="mt-4">
-                            <div className="mb-4">
-                                <div className="relative">
-                                    <GuestLogin />
-                                </div>
-                            </div>
+                        <TabsContent value="guest">
+                            <GuestLogin />
                         </TabsContent>
                     </Tabs>
 
-                    <div className="text-center mt-8">
-                        <div className="flex items-center w-full my-4">
-                            <div className="flex-grow border-t border-border"></div>
-                            <span className="mx-4 text-sm text-gray-500">Não tem uma conta?</span>
-                            <div className="flex-grow border-t border-border"></div>
+                    {/* Botão para continuar sem login se veio do QR code */}
+                    {restaurantId && tableId && (
+                        <div className="mt-6">
+                            <button
+                                onClick={continueWithoutLogin}
+                                className="w-full py-2 text-gray-600 text-sm underline hover:text-gray-900"
+                            >
+                                Continuar sem login
+                            </button>
                         </div>
-                        <Button
-                            variant="ghost"
-                            className="w-full py-2 mt-1 bg-gray-100 text-secondary rounded-md hover:bg-gray-200 hover:text-dark-primary-foreground hover:border-none"
-                            onClick={() => redirect.push('/register/admin')}
-                        >
-                            Criar uma conta agora
-                        </Button>
+                    )}
+
+                    <div className="mt-8 text-center text-sm text-gray-500">
+                        <p>
+                            Não tem uma conta?{' '}
+                            <Link href="/register" className="text-blue-600 hover:underline">
+                                Cadastre-se
+                            </Link>
+                        </p>
                     </div>
                 </div>
             </div>
 
-            {/* Lado direito - logo e fundo preto */}
-            <div className="w-full md:w-2/3 bg-black flex flex-col items-center justify-center p-8">
-                <div className="flex-1 flex items-center justify-center">
-                    <Image
-                        priority
-                        src={Logo}
-                        alt="SR. GARÇOM"
-                        width={400}
-                        height={120}
-                    />
-                </div>
-                <div className="text-white text-center text-sm mt-auto">
-                    <p>
-                        Ao entrar você concorda com os <Link href="#" className="underline text-white">Termos de uso</Link> e as <Link href="#" className="underline text-white">Política de privacidade</Link>
+            {/* Lado direito - imagem ou logo */}
+            <div className="hidden md:block md:w-1/2 bg-gradient-to-r from-blue-500 to-indigo-600">
+                <div className="h-full flex flex-col items-center justify-center text-white p-8">
+                    <h2 className="text-3xl font-bold mb-4">Sr. Garçom</h2>
+                    <p className="text-xl max-w-md text-center">
+                        Faça seus pedidos de forma rápida e prática, sem complicações!
                     </p>
                 </div>
             </div>
