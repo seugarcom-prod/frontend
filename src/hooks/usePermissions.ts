@@ -35,17 +35,17 @@ const rolePermissions = {
 
 // Hook para verificar permissões
 export function usePermissions() {
-    const { auth } = useAuth();
+    const { isAuthenticated, user } = useAuth();
 
     // Verificar se o usuário tem uma permissão específica
     const hasPermission = (permission: string): boolean => {
         // Se não estiver autenticado, não tem permissão
-        if (!auth?.isAuthenticated || !auth.user) {
+        if (!isAuthenticated || !user) {
             return false;
         }
 
         // Role do usuário
-        const userRole = auth.user.role;
+        const userRole = user.role;
         if (!userRole) {
             return false;
         }
@@ -56,47 +56,47 @@ export function usePermissions() {
 
     // Verificar se o usuário tem uma role específica
     const hasRole = (roles: string[]): boolean => {
-        if (!auth?.isAuthenticated || !auth.user || !auth.user.role) {
+        if (!isAuthenticated || !user || !user.role) {
             return false;
         }
 
-        return roles.includes(auth.user.role);
+        return roles.includes(user.role);
     };
 
     // Verificar se o usuário é dono do recurso
     const isOwner = (resourceUserId: string | undefined): boolean => {
-        if (!auth?.isAuthenticated || !auth.user || !auth.user._id) {
+        if (!isAuthenticated || !user || !user._id) {
             return false;
         }
 
-        return auth.user._id === resourceUserId;
+        return user._id === resourceUserId;
     };
 
     // Verificar se o usuário é administrador
     const isAdmin = (): boolean => {
-        if (!auth?.isAuthenticated || !auth.user || !auth.user.role) {
+        if (!isAuthenticated || !user || !user.role) {
             return false;
         }
 
-        return auth.user.role === 'ADMIN';
+        return user.role === 'ADMIN';
     };
 
     // Verificar se o usuário é gerente
     const isManager = (): boolean => {
-        if (!auth?.isAuthenticated || !auth.user || !auth.user.role) {
+        if (!isAuthenticated || !user || !user.role) {
             return false;
         }
 
-        return auth.user.role === 'MANAGER' || auth.user.role === 'ADMIN';
+        return user.role === 'MANAGER' || user.role === 'ADMIN';
     };
 
     // Verificar se o usuário é atendente ou superior
     const isAttendantOrHigher = (): boolean => {
-        if (!auth?.isAuthenticated || !auth.user || !auth.user.role) {
+        if (!isAuthenticated || !user || !user.role) {
             return false;
         }
 
-        return ['ATTENDANT', 'MANAGER', 'ADMIN'].includes(auth.user.role);
+        return ['ATTENDANT', 'MANAGER', 'ADMIN'].includes(user.role);
     };
 
     return {

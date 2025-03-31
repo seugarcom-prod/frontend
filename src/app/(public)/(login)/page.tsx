@@ -2,5 +2,5 @@
 import { LoginPage } from '@/components/login/index';
 
 export default function Page() {
-    return <LoginPage userType="guest" />;
+    return <LoginPage />;
 }

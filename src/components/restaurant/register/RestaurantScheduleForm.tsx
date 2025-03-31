@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useIsMobile } from "@/hooks/useMobile";
 
 interface Schedule {
     days: string[];
@@ -33,10 +34,10 @@ const weekDays = [
 ];
 
 export default function RestaurantScheduleForm({ formData, updateFormData }: RestaurantScheduleFormProps) {
+    const isMobile = useIsMobile();
     const [selectedDays, setSelectedDays] = useState<string[]>([]);
-    const [openTime, setOpenTime] = useState("--:--");
-    const [closeTime, setCloseTime] = useState("--:--");
-    const [useMatrixSchedule, setUseMatrixSchedule] = useState(false);
+    const [openTime, setOpenTime] = useState("08:00");
+    const [closeTime, setCloseTime] = useState("14:00");
 
     const handleToggleDay = (dayId: string) => {
         setSelectedDays(prev =>
@@ -46,12 +47,8 @@ export default function RestaurantScheduleForm({ formData, updateFormData }: Res
         );
     };
 
-    const handleToggleMatrixSchedule = (checked: boolean) => {
-        setUseMatrixSchedule(checked);
-    };
-
     const handleAddSchedule = () => {
-        if (selectedDays.length > 0 && openTime !== "--:--" && closeTime !== "--:--") {
+        if (selectedDays.length > 0) {
             const newSchedules = [
                 ...formData.schedules,
                 {
@@ -65,8 +62,6 @@ export default function RestaurantScheduleForm({ formData, updateFormData }: Res
 
             // Reset selection for next input
             setSelectedDays([]);
-            setOpenTime("--:--");
-            setCloseTime("--:--");
         }
     };
 
@@ -76,116 +71,229 @@ export default function RestaurantScheduleForm({ formData, updateFormData }: Res
         updateFormData({ schedules: newSchedules });
     };
 
-    // Render a single day selection button
-    const DayButton = ({ day }: { day: typeof weekDays[0] }) => (
-        <div
-            onClick={() => handleToggleDay(day.id)}
-            className={`w-10 h-10 rounded-md border flex items-center justify-center cursor-pointer text-sm 
-        ${selectedDays.includes(day.id) ? 'bg-gray-200 border-border' : 'bg-white border-border text-gray-600'}`}
-        >
-            {day.label}
-        </div>
-    );
-
     return (
-        <div className="space-y-6 w-full">
+        <div className="space-y-6">
+            <div>
+                <h2 className="text-lg font-medium mb-1">Horários de funcionamento</h2>
+                <p className="text-sm text-gray-500 mb-6">
+                    Informe os horários de funcionamento para que os clientes saibam quando acessar sua loja.
+                </p>
+            </div>
 
-            <div className="flex">
-                {/* Lado esquerdo - Configurador de horários */}
-                <div className="w-2/3 pr-4 border-r border-border">
-                    <div>
-                        <h2 className="text-lg font-medium mb-1">Horários de funcionamento</h2>
-                        <p className="text-sm text-gray-500 mb-4">
-                            Informe os horários de funcionamento para que os clientes saibam quando acessar sua loja.
-                        </p>
+            {isMobile ? (
+                // Layout para Mobile (mais compacto)
+                <div className="space-y-6">
+                    {/* Inputs de horário para mobile */}
+                    <div className="space-y-4">
+                        <div>
+                            <Label className="block mb-2">Abre</Label>
+                            <Input
+                                type="time"
+                                value={openTime}
+                                onChange={(e) => setOpenTime(e.target.value)}
+                                placeholder="--:--"
+                                className="w-full"
+                            />
+                        </div>
+
+                        <div>
+                            <Label className="block mb-2">Fecha</Label>
+                            <Input
+                                type="time"
+                                value={closeTime}
+                                onChange={(e) => setCloseTime(e.target.value)}
+                                placeholder="--:--"
+                                className="w-full"
+                            />
+                        </div>
                     </div>
-                    <div className="space-y-6 pt-4 w-full">
-                        <div className="flex w-full justify-between">
-                            <div className="pr-2">
-                                <Label className="block mb-2">Abre</Label>
-                                <Input
-                                    type="time"
-                                    value={openTime}
-                                    onChange={(e) => setOpenTime(e.target.value)}
-                                    placeholder="--:--"
-                                    className="w-full p-2 border border-border rounded-md"
-                                />
-                            </div>
 
-                            <div className="pl-2">
-                                <Label className="block mb-2">Fecha</Label>
-                                <Input
-                                    type="time"
-                                    value={closeTime}
-                                    onChange={(e) => setCloseTime(e.target.value)}
-                                    placeholder="--:--"
-                                    className="w-full p-2 border border-border rounded-md"
-                                />
+                    {/* Grid de dias da semana para mobile */}
+                    <div className="grid grid-cols-7 gap-1 w-full my-4">
+                        {weekDays.map(day => (
+                            <div
+                                key={day.id}
+                                className={`h-8 w-8 flex items-center justify-center rounded-md cursor-pointer text-sm
+                                    ${selectedDays.includes(day.id)
+                                        ? 'bg-gray-200 font-medium'
+                                        : 'bg-white border border-gray-300 text-gray-600'}`}
+                                onClick={() => handleToggleDay(day.id)}
+                            >
+                                {day.label}
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Botão para adicionar horário no mobile */}
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleAddSchedule}
+                        className="w-full py-2 border-dashed text-gray-500"
+                        disabled={selectedDays.length === 0}
+                    >
+                        Adicionar horário
+                    </Button>
+
+                    {/* Lista de horários configurados para mobile */}
+                    <div className="space-y-3 mt-4">
+                        {formData.schedules.map((schedule, index) => (
+                            <div key={index} className="border rounded-md p-3 relative">
+                                <div className="flex flex-wrap gap-1 mb-3">
+                                    {schedule.days.map(dayId => {
+                                        const day = weekDays.find(d => d.id === dayId);
+                                        return day ? (
+                                            <div
+                                                key={dayId}
+                                                className="px-2 py-1 rounded-full bg-gray-100 text-gray-800 text-xs"
+                                            >
+                                                {day.fullName}
+                                            </div>
+                                        ) : null;
+                                    })}
+                                </div>
+
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <div className="text-xs text-gray-500">Abre às:</div>
+                                        <div className="text-sm font-medium">{schedule.opens}</div>
+                                    </div>
+
+                                    <div>
+                                        <div className="text-xs text-gray-500">Fecha às:</div>
+                                        <div className="text-sm font-medium">{schedule.closes}</div>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDeleteSchedule(index)}
+                                        className="text-gray-400 hover:text-gray-600"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                // Layout para Desktop (como nas imagens)
+                <div className="space-y-6">
+                    <div className="flex">
+                        {/* Lado esquerdo - Configurador de horários */}
+                        <div className="w-1/2 pr-6 border-r border-gray-200">
+                            <div className="space-y-6">
+                                {/* Inputs de horário e dias da semana */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <Label className="block mb-2">Abre</Label>
+                                        <Input
+                                            type="time"
+                                            value={openTime}
+                                            onChange={(e) => setOpenTime(e.target.value)}
+                                            placeholder="--:--"
+                                            className="w-full"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <Label className="block mb-2">Fecha</Label>
+                                        <Input
+                                            type="time"
+                                            value={closeTime}
+                                            onChange={(e) => setCloseTime(e.target.value)}
+                                            placeholder="--:--"
+                                            className="w-full"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Visualização da seleção dos dias da semana em grid */}
+                                <div className="grid grid-cols-7 gap-2 w-full text-center my-4">
+                                    {weekDays.map(day => (
+                                        <div key={day.id} className="text-center text-sm">{day.label}</div>
+                                    ))}
+                                </div>
+
+                                {/* Seleção de dias para novo horário */}
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                    {weekDays.map(day => (
+                                        <button
+                                            key={day.id}
+                                            type="button"
+                                            onClick={() => handleToggleDay(day.id)}
+                                            className={`px-3 py-1 text-sm rounded-full border ${selectedDays.includes(day.id)
+                                                ? 'bg-gray-100 border-gray-400 font-medium'
+                                                : 'bg-white border-gray-300 text-gray-600'
+                                                }`}
+                                        >
+                                            {day.fullName}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Botão para adicionar novo horário */}
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={handleAddSchedule}
+                                    className="w-full py-2 border-dashed text-gray-500"
+                                    disabled={selectedDays.length === 0}
+                                >
+                                    Adicionar horário
+                                </Button>
                             </div>
                         </div>
 
-                        <div className="flex justify-between w-full">
-                            {weekDays.map(day => (
-                                <div
-                                    key={day.id}
-                                    onClick={() => handleToggleDay(day.id)}
-                                    className={`w-8 h-8 flex items-center justify-center rounded-md border cursor-pointer text-sm
-                    ${selectedDays.includes(day.id)
-                                            ? 'bg-gray-200 border-border font-medium'
-                                            : 'bg-white border-border text-gray-600'}`}
-                                >
-                                    {day.label}
+                        {/* Lado direito - Lista de horários configurados */}
+                        <div className="w-1/2 pl-6 space-y-4">
+                            {formData.schedules.map((schedule, index) => (
+                                <div key={index} className="border rounded-md p-4 relative">
+                                    <div className="flex flex-wrap gap-2 mb-4">
+                                        {schedule.days.map(dayId => {
+                                            const day = weekDays.find(d => d.id === dayId);
+                                            return day ? (
+                                                <div
+                                                    key={dayId}
+                                                    className="px-3 py-1 rounded-full bg-gray-100 text-gray-800 text-sm"
+                                                >
+                                                    {day.fullName}
+                                                </div>
+                                            ) : null;
+                                        })}
+                                    </div>
+
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <div className="text-xs text-gray-500">Abre às:</div>
+                                            <div className="font-medium">{schedule.opens}</div>
+                                        </div>
+
+                                        <div>
+                                            <div className="text-xs text-gray-500">Fecha às:</div>
+                                            <div className="font-medium">{schedule.closes}</div>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDeleteSchedule(index)}
+                                            className="text-gray-400 hover:text-gray-600"
+                                        >
+                                            <Trash2 className="h-5 w-5" />
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
-                        </div>
 
-                        <div className="pt-4">
-                            <button
-                                onClick={handleAddSchedule}
-                                className="w-full py-2 text-sm text-gray-600 border border-border rounded-md bg-white hover:bg-gray-50"
-                            >
-                                Adicionar horário
-                            </button>
+                            {formData.schedules.length === 0 && (
+                                <div className="text-center py-6 text-gray-500">
+                                    Nenhum horário configurado
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
-
-                {/* Lado direito - Lista de horários configurados */}
-                <div className="w-1/2 pl-4 space-y-4">
-                    {formData.schedules.map((schedule, index) => (
-                        <div key={index} className="border border-border rounded-md p-4 relative">
-                            <div className="flex flex-wrap gap-1 mb-4">
-                                {schedule.days.map(dayId => {
-                                    const day = weekDays.find(d => d.id === dayId);
-                                    return day ? (
-                                        <div key={dayId} className="px-3 py-1 rounded-full bg-gray-100 text-gray-800 text-sm">
-                                            {day.fullName}
-                                        </div>
-                                    ) : null;
-                                })}
-                            </div>
-
-                            <div className="grid grid-cols-2">
-                                <div>
-                                    <Label className="text-xs text-gray-500 block">Abre às:</Label>
-                                    <div className="text-sm font-medium">{schedule.opens}</div>
-                                </div>
-                                <div>
-                                    <Label className="text-xs text-gray-500 block">Fecha às:</Label>
-                                    <div className="text-sm font-medium">{schedule.closes}</div>
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={() => handleDeleteSchedule(index)}
-                                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-                            >
-                                <Trash2 className="h-5 w-5" />
-                            </button>
-                        </div>
-                    ))}
-                </div>
-            </div>
+            )}
         </div>
     );
 }

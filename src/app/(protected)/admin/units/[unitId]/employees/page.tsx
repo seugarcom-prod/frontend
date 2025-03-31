@@ -3,18 +3,13 @@
 import React from 'react';
 import { useParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
-import { useAuthCheck } from '@/hooks/useAuth';
 import EmployeeList from '@/components/employee/EmployeeList';
+import { AuthProvider } from '@/hooks/useAuth';
 
 export default function EmployeesPage() {
     const params = useParams();
     const unitId = params.unitId as string;
-    const { data: authData, isLoading: isAuthLoading } = useAuthCheck(true);
-
-    // Verificar se o usuário está autenticado como administrador ou gerente
-    const isAuthorized = authData?.isAuthenticated &&
-        (authData?.user?.role === 'ADMIN' || authData?.user?.role === 'MANAGER');
-
+    const { data: authData, isLoading: isAuthLoading } = useAuth(true);
     console.log("Auth data:", {
         isAuthenticated: authData?.isAuthenticated,
         userRole: authData?.user?.role,
@@ -32,19 +27,6 @@ export default function EmployeesPage() {
                         ))}
                     </div>
                 </div>
-            </div>
-        );
-    }
-
-    if (!isAuthorized) {
-        return (
-            <div className="container mx-auto px-4 py-8">
-                <Card>
-                    <CardContent className="p-6 text-center">
-                        <h2 className="text-xl font-semibold text-red-600 mb-2">Acesso Negado</h2>
-                        <p>Você não tem permissão para acessar esta página.</p>
-                    </CardContent>
-                </Card>
             </div>
         );
     }

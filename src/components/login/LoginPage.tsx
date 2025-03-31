@@ -1,47 +1,93 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UserLogin } from '@/components/login/UserLogin';
 import { GuestLogin } from '@/components/login/GuestLogin';
-import { useSaveTableInfo } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 import Image from 'next/image';
 import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
 
-export default function LoginPage() {
+export function LoginPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const saveTableInfo = useSaveTableInfo();
+    const { authenticateAsGuest, isAuthenticated, isGuest, isRole, loading } = useAuth();
+    const [restaurantInfo, setRestaurantInfo] = useState<{ name: string } | null>(null);
 
     // Obter parâmetros da URL
     const restaurantId = searchParams.get('restaurantId');
     const tableId = searchParams.get('tableId');
+    const redirect = searchParams.get('redirect') || '';
 
-    // Usar um efeito para salvar informações quando os parâmetros estiverem disponíveis
+    // Redirecionar se já estiver autenticado
     useEffect(() => {
-        if (restaurantId && tableId) {
-            saveTableInfo(restaurantId, tableId);
+        if (!loading && isAuthenticated) {
+            if (isRole('ADMIN')) {
+                console.log("Role: ", isRole('ADMIN'))
+                router.push('/admin');
+            } else if (isRole('MANAGER')) {
+                router.push('/admin');
+            } else if (isRole('ATTENDANT')) {
+                router.push('/attendant/orders');
+            } else if (isRole('CLIENT') || isGuest) {
+                // Para cliente ou convidado, redirecionar conforme params
+                if (redirect) {
+                    router.push(redirect);
+                } else if (restaurantId) {
+                    router.push(`/restaurant/${restaurantId}/menu`);
+                } else {
+                    router.push('/');
+                }
+            }
         }
-    }, [restaurantId, tableId, saveTableInfo]);
+    }, [isAuthenticated, isRole, isGuest, loading, router, redirect, restaurantId]);
 
-    // Função para continuar como convidado sem login
-    const continueWithoutLogin = () => {
+    // Buscar informações do restaurante
+    useEffect(() => {
         if (restaurantId) {
-            // Criar um token de convidado genérico
-            const guestToken = `guest_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
-            localStorage.setItem('guest_token', guestToken);
-            localStorage.setItem('guest_data', JSON.stringify({
-                firstName: `Mesa ${tableId || 'Desconhecida'}`,
-                isGuest: true
-            }));
+            fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/restaurant/${restaurantId}`)
+                .then(res => res.json())
+                .then(data => {
+                    setRestaurantInfo(data);
+
+                    // Salvar informações da mesa para uso futuro
+                    if (tableId) {
+                        localStorage.setItem(`table-${data.name.toLowerCase().replace(/\s+/g, '-')}`, tableId);
+                    }
+                })
+                .catch(err => console.error("Erro ao buscar restaurante:", err));
+        }
+    }, [restaurantId, tableId]);
+
+    // Função para continuar como convidado
+    const continueAsGuest = () => {
+        if (restaurantId && tableId && restaurantInfo) {
+            // Usar função do contexto de autenticação
+            authenticateAsGuest(
+                tableId,
+                restaurantId,
+                restaurantInfo.name.toLowerCase().replace(/\s+/g, '-')
+            );
 
             // Redirecionar para o menu
-            router.push(`/restaurant/${restaurantId}/menu`);
-        } else {
-            router.push('/');
+            if (redirect) {
+                router.push(redirect);
+            } else {
+                router.push(`/restaurant/${restaurantId}/menu`);
+            }
         }
     };
+
+    // Mostrar loader enquanto verifica autenticação
+    if (loading) {
+        return (
+            <div className="flex min-h-screen items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen w-full flex flex-col md:flex-row bg-secondary">
@@ -51,10 +97,10 @@ export default function LoginPage() {
                     <h1 className="text-2xl font-bold mb-6">Bem-vindo</h1>
 
                     {/* Mostrar informações da mesa se vier de um QR code */}
-                    {restaurantId && tableId && (
+                    {restaurantId && tableId && restaurantInfo && (
                         <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-                            <p className="text-sm">
-                                <span className="font-medium">Restaurante ID:</span> {restaurantId}
+                            <p className="text-sm font-medium">
+                                {restaurantInfo.name}
                             </p>
                             <p className="text-sm">
                                 <span className="font-medium">Mesa:</span> {tableId}
@@ -69,11 +115,27 @@ export default function LoginPage() {
                         </TabsList>
 
                         <TabsContent value="user">
-                            <UserLogin />
+                            <UserLogin
+                                onLoginSuccess={() => {
+                                    if (redirect) {
+                                        router.push(redirect);
+                                    } else if (restaurantId) {
+                                        router.push(`/restaurant/${restaurantId}/menu`);
+                                    }
+                                }}
+                            />
                         </TabsContent>
 
                         <TabsContent value="guest">
-                            <GuestLogin />
+                            <GuestLogin
+                                onLoginSuccess={() => {
+                                    if (redirect) {
+                                        router.push(redirect);
+                                    } else if (restaurantId) {
+                                        router.push(`/restaurant/${restaurantId}/menu`);
+                                    }
+                                }}
+                            />
                         </TabsContent>
                     </Tabs>
 
@@ -81,7 +143,7 @@ export default function LoginPage() {
                     {restaurantId && tableId && (
                         <div className="mt-6">
                             <button
-                                onClick={continueWithoutLogin}
+                                onClick={continueAsGuest}
                                 className="w-full py-2 text-gray-600 text-sm underline hover:text-gray-900"
                             >
                                 Continuar sem login
@@ -92,7 +154,13 @@ export default function LoginPage() {
                     <div className="mt-8 text-center text-sm text-gray-500">
                         <p>
                             Não tem uma conta?{' '}
-                            <Link href="/register" className="text-blue-600 hover:underline">
+                            <Link
+                                href={restaurantId
+                                    ? `/register?restaurantId=${restaurantId}&tableId=${tableId || ''}`
+                                    : "/register"
+                                }
+                                className="text-blue-600 hover:underline"
+                            >
                                 Cadastre-se
                             </Link>
                         </p>

@@ -13,50 +13,65 @@ export function middleware(request: NextRequest) {
         '/reset-password',
     ];
 
-    // Verificar se a rota é pública
-    const isPublicPath = publicPaths.some(publicPath =>
-        path === publicPath || path.startsWith(`/${publicPath}`)
+    // Rotas de restaurante que não precisam de autenticação
+    // ou podem usar autenticação de convidado
+    const restaurantPublicPaths = /^\/([\w-]+)\/(menu|scan|qrcode)/;
+
+    // Rotas que exigem autenticação de admin/manager
+    const adminPaths = [
+        '/dashboard',
+        '/admin',
+        '/settings',
+        '/restaurant-management',
+    ];
+
+    // Verificar tokens nos cookies
+    const authToken = request.cookies.get('auth_token')?.value;
+    const guestToken = request.cookies.get('guest_token')?.value;
+
+    // Verificar se há algum token válido
+    const hasToken = !!authToken || !!guestToken;
+
+    // Verificar se o caminho é uma rota de admin
+    const isAdminPath = adminPaths.some(adminPath =>
+        path === adminPath || path.startsWith(`${adminPath}/`)
     );
 
-    // Verificar outras rotas que podem ser acessadas sem login
-    // Como rotas de restaurantes, cardápios, etc.
-    const isRestaurantPath = path.match(/^\/[^\/]+\/(menu|table)/);
+    // Verificar se o caminho é uma rota pública
+    const isPublicPath = publicPaths.some(publicPath =>
+        path === publicPath || path.startsWith(`${publicPath}/`)
+    );
 
-    // Verificar se o usuário está logado (tem um token)
-    const token = request.cookies.get('auth_token')?.value;
-    const guestToken = request.cookies.get('guest_token')?.value;
-    const isLoggedIn = !!token || !!guestToken;
+    // Verificar se o caminho é uma rota de restaurante pública
+    const isRestaurantPublicPath = restaurantPublicPaths.test(path);
 
-    // Verificar rotas que requerem autenticação específica
-    const requiresAuth = path.includes('/dashboard') ||
-        path.includes('/admin') ||
-        path.includes('/profile');
+    // Rotas de mesa que exigem pelo menos autenticação de convidado
+    const tablePattern = /^\/([\w-]+)\/table\/([\w-]+)/;
+    const isTablePath = tablePattern.test(path);
 
-    // Rotas específicas que exigem roles
-    const adminOnlyPaths = ['/admin', '/dashboard/admin'];
-    const managerOnlyPaths = ['/dashboard/manager'];
-    const attendantOnlyPaths = ['/dashboard/attendant'];
+    // Rotas de pedido que exigem pelo menos autenticação de convidado
+    const orderPattern = /^\/([\w-]+)\/(cart|order)/;
+    const isOrderPath = orderPattern.test(path);
 
-    // Se for uma rota que requer autenticação e o usuário não está logado
-    if (requiresAuth && !isLoggedIn) {
-        // Redirecionar para o login
-        const redirectUrl = new URL('/login', request.url);
-        redirectUrl.searchParams.set('callbackUrl', path);
-        return NextResponse.redirect(redirectUrl);
+    // Se for uma rota de admin e não tiver token
+    if (isAdminPath && !authToken) {
+        return NextResponse.redirect(new URL('/login', request.url));
     }
 
-    // Para rotas administrativas, precisamos verificar a role no lado do servidor
-    // Aqui estamos apenas verificando o token, a verificação real de role 
-    // deve ser feita no componente com o hook useAuth
+    // Se for uma rota de mesa ou pedido e não tiver nenhum token
+    if ((isTablePath || isOrderPath) && !hasToken) {
+        // Extrair o nome do restaurante da URL
+        const restaurantName = path.split('/')[1];
+        return NextResponse.redirect(new URL(`/${restaurantName}/scan`, request.url));
+    }
 
-    // Para rotas públicas, continuar normalmente
-    if (isPublicPath || isRestaurantPath || isLoggedIn) {
+    // Para rotas públicas ou rotas com autenticação adequada, continuar normalmente
+    if (isPublicPath || isRestaurantPublicPath || hasToken) {
         return NextResponse.next();
     }
 
-    // Para qualquer outra situação, redirecionar para login
-    const redirectUrl = new URL('/login', request.url);
-    return NextResponse.redirect(redirectUrl);
+    // Se chegou aqui, redirecionar para a página inicial
+    return NextResponse.redirect(new URL('/', request.url));
 }
 
 // Configurar quais rotas devem passar pelo middleware

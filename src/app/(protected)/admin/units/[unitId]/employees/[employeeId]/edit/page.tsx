@@ -3,19 +3,19 @@
 import React from 'react';
 import { useParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
-import { useAuthCheck } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 import EmployeeForm from '@/components/employee/EmployeeForm';
 
 export default function EditEmployeePage() {
     const params = useParams();
     const unitId = params.unitId as string;
     const employeeId = params.employeeId as string;
-    const { data: authData, isLoading: isAuthLoading } = useAuthCheck(true);
+    const { isAuthenticated, user, loading } = useAuth();
 
     // Verificar se o usuário está autenticado como administrador
-    const isAuthorized = authData?.isAuthenticated && authData?.user?.role === 'ADMIN';
+    const isAuthorized = isAuthenticated && user?.role === 'ADMIN';
 
-    if (isAuthLoading) {
+    if (loading) {
         return (
             <div className="container mx-auto px-4 py-8">
                 <div className="animate-pulse">

@@ -2,6 +2,7 @@
 
 import { Providers } from "@/providers/queryProvider"
 import { SidebarProvider } from "@/components/ui/sidebar"
+import AdminGuard from '@/components/guards/AdminGuard' // O componente de proteção que criamos
 
 export default function AdminLayout({
     children,
@@ -10,9 +11,11 @@ export default function AdminLayout({
 }) {
     return (
         <Providers>
-            <SidebarProvider>
-                {children}
-            </SidebarProvider>
+            <AdminGuard requiredRole="ANY_ADMIN">
+                <SidebarProvider>
+                    {children}
+                </SidebarProvider>
+            </AdminGuard>
         </Providers>
     )
 }

@@ -17,20 +17,20 @@ export default function RoleProtected({
     children,
     fallback = <div>Acesso não autorizado</div>
 }: RoleProtectedProps) {
-    const { auth, isLoading } = useAuth();
+    const { isAuthenticated, user, loading } = useAuth();
 
     // Exibir spinner enquanto verifica autenticação
-    if (isLoading) {
+    if (loading) {
         return <div className="flex justify-center py-8"><Skeleton /></div>;
     }
 
     // Verificar se está autenticado
-    if (!auth?.isAuthenticated) {
+    if (!isAuthenticated) {
         return fallback;
     }
 
     // Verificar a role do usuário
-    const userRole = auth.user?.role;
+    const userRole = user?.role;
     const hasPermission = userRole && allowedRoles.includes(userRole as AllowedRole);
 
     if (!hasPermission) {
@@ -40,9 +40,3 @@ export default function RoleProtected({
     // Se tem permissão, renderiza os children
     return <>{children}</>;
 }
-
-// Exemplo de uso:
-//
-// <RoleProtected allowedRoles={['ADMIN', 'MANAGER']}>
-//   <AdminDashboard />
-// </RoleProtected>
