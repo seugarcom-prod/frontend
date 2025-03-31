@@ -11,7 +11,7 @@ interface RouteGuardProps {
 
 // Mapeamento de rotas para permissões necessárias
 const routePermissions: Record<string, string[]> = {
-    '/dashboard': ['view_dashboard'],
+    '/admin': ['view_dashboard'],
     '/dashboard/users': ['manage_users'],
     '/dashboard/restaurants': ['manage_restaurants'],
     '/dashboard/orders': ['manage_orders', 'view_orders'],
@@ -21,30 +21,28 @@ const routePermissions: Record<string, string[]> = {
 
 // Mapeamento de rotas para roles permitidas
 const routeRoles: Record<string, string[]> = {
-    '/admin': ['ADMIN'],
-    '/dashboard/admin': ['ADMIN'],
-    '/dashboard/manager': ['ADMIN', 'MANAGER'],
+    '/admin': ['ADMIN', 'MANAGERs'],
     '/dashboard/attendant': ['ADMIN', 'MANAGER', 'ATTENDANT'],
 };
 
 export default function NavigationGuard({ children }: RouteGuardProps) {
     const router = useRouter();
     const pathname = usePathname();
-    const { auth, isLoading } = useAuth();
+    const { isAuthenticated, loading } = useAuth();
     const { hasPermission, hasRole } = usePermissions();
 
     useEffect(() => {
         // Ignorar durante o carregamento inicial
-        if (isLoading) return;
+        if (loading) return;
 
         // Se não estiver autenticado e a rota não é pública
-        if (!auth?.isAuthenticated && !isPublicRoute(pathname)) {
+        if (!isAuthenticated && !isPublicRoute(pathname)) {
             router.push('/login');
             return;
         }
 
         // Verificar permissões baseadas em rota
-        if (auth?.isAuthenticated && pathname) {
+        if (isAuthenticated && pathname) {
             // Verificar permissões para a rota exata
             const requiredPermissions = getRequiredPermissions(pathname);
             if (requiredPermissions.length > 0) {
@@ -67,7 +65,7 @@ export default function NavigationGuard({ children }: RouteGuardProps) {
                 }
             }
         }
-    }, [pathname, auth, isLoading, router, hasPermission, hasRole]);
+    }, [pathname, isAuthenticated, loading, router, hasPermission, hasRole]);
 
     // Verificar se é uma rota pública
     const isPublicRoute = (path: string): boolean => {
@@ -121,26 +119,10 @@ export default function NavigationGuard({ children }: RouteGuardProps) {
     };
 
     // Mostrar tela de carregamento enquanto verifica autenticação
-    if (isLoading) {
+    if (loading) {
         return <div className="flex justify-center items-center min-h-screen">Carregando...</div>;
     }
 
     // Se todas as verificações passaram, renderizar o conteúdo
     return <>{children}</>;
 }
-
-// Uso no layout principal da aplicação:
-//
-// export default function RootLayout({ children }: { children: React.ReactNode }) {
-//   return (
-//     <html lang="pt-BR">
-//       <body>
-//         <Providers>
-//           <NavigationGuard>
-//             {children}
-//           </NavigationGuard>
-//         </Providers>
-//       </body>
-//     </html>
-//   );
-// }

@@ -81,9 +81,3 @@ export const handleCnpjPart2Change = (e: React.ChangeEvent<HTMLInputElement>, up
 export const handleCnpjPart3Change = (e: React.ChangeEvent<HTMLInputElement>, updateFormData: (data: any) => void) => {
     handleCnpjChange(e, 'cnpjPart3', updateFormData);
 };
-
-// Para o telefone, mantemos a mesma lógica do código original
-export const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>, updateFormData: (data: any) => void) => {
-    const formattedPhone = formatPhone(e.target.value);
-    updateFormData({ phone: formattedPhone });
-};

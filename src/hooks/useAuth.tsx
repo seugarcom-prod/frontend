@@ -1,173 +1,324 @@
+// hooks/useAuth.ts
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 
-// Tipo para dados de autenticação
-export interface AuthData {
-    isAuthenticated: boolean;
-    isGuest: boolean;
-    user?: {
-        _id?: string;
-        firstName?: string;
-        lastName?: string;
-        email?: string;
-        role?: 'ADMIN' | 'MANAGER' | 'ATTENDANT' | 'CLIENT';
-        isGuest: boolean;
-    };
-    token?: string;
+// API URL - Ajustado para garantir o URL base correto
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:3333';
+
+// Tipo para credenciais de login
+interface LoginCredentials {
+    email: string;
+    password: string;
 }
 
-// Contexto de autenticação
-const AuthContext = createContext<{
-    auth: AuthData | null;
-    isLoading: boolean;
-    login: (email: string, password: string) => Promise<void>;
-    logout: () => void;
-}>({
-    auth: null,
-    isLoading: true,
-    login: async () => { },
-    logout: () => { },
+// Tipo para dados de registro de convidado
+interface GuestData {
+    cpf: string;
+    email: string;
+}
+
+// Tipo para dados de autenticação
+export interface AuthUser {
+    _id?: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    role?: 'ADMIN' | 'MANAGER' | 'ATTENDANT' | 'CLIENT';
+    isGuest: boolean;
+}
+
+// Tipo para informações do restaurante
+export interface RestaurantInfo {
+    restaurant?: {
+        _id: string;
+        name: string;
+    };
+    unit?: {
+        _id: string;
+        name: string;
+    };
+}
+
+// Interface para estado de autenticação
+export interface AuthState {
+    isAuthenticated: boolean;
+    isGuest: boolean;
+    user: AuthUser | null;
+    restaurantInfo: RestaurantInfo | null;
+    token: string | null;
+}
+
+// Interface para contexto de autenticação
+export interface AuthContextType extends AuthState {
+    login: (credentials: LoginCredentials) => Promise<any>;
+    guestLogin: (data: GuestData) => Promise<any>;
+    adminLogin: (email: string, password: string) => Promise<any>;
+    logout: () => Promise<void>;
+    registerClient: (userData: any) => Promise<any>;
+    registerRestaurant: (data: any) => Promise<any>;
+    authenticateAsGuest: (tableId: string, restaurantId: string, restaurantName: string) => void;
+    isRole: (role: 'ADMIN' | 'MANAGER' | 'ATTENDANT' | 'CLIENT') => boolean;
+    isAdminOrManager: () => boolean;
+    loading: boolean;
+}
+
+// Criar contexto com valores padrão
+const AuthContext = createContext<AuthContextType>({
+    isAuthenticated: false,
+    isGuest: false,
+    user: null,
+    restaurantInfo: null,
+    token: null,
+    login: async () => ({}),
+    guestLogin: async () => ({}),
+    adminLogin: async () => ({}),
+    logout: async () => { },
+    registerClient: async () => ({}),
+    registerRestaurant: async () => ({}),
+    authenticateAsGuest: () => { },
+    isRole: () => false,
+    isAdminOrManager: () => false,
+    loading: true
 });
 
-// Provider de autenticação
-export function AuthProvider({ children }: { children: ReactNode }) {
-    const [auth, setAuth] = useState<AuthData | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+// Hook personalizado para usar o contexto de autenticação
+export const useAuth = () => useContext(AuthContext);
+
+// Hook para login de usuários
+export const userLogin = () => {
+    const { login } = useAuth();
+    const [isPending, setIsPending] = useState(false);
+    const [error, setError] = useState<Error | null>(null);
+
+    const mutate = async (credentials: LoginCredentials, options?: { onSuccess?: () => void }) => {
+        setIsPending(true);
+        setError(null);
+
+        try {
+            const result = await login(credentials);
+            options?.onSuccess?.();
+            return result;
+        } catch (err: any) {
+            setError(err);
+            throw err;
+        } finally {
+            setIsPending(false);
+        }
+    };
+
+    return { mutate, isPending, error };
+};
+
+// Hook para login de convidados
+export const useGuestLogin = () => {
+    const { guestLogin } = useAuth();
+    const [isPending, setIsPending] = useState(false);
+    const [error, setError] = useState<Error | null>(null);
+
+    const mutate = async (data: { cpf: string, email: string }, options?: { onSuccess?: () => void }) => {
+        setIsPending(true);
+        setError(null);
+
+        try {
+            const result = await guestLogin(data);
+            if (options?.onSuccess) {
+                options.onSuccess();
+            }
+            return result;
+        } catch (err: any) {
+            setError(err instanceof Error ? err : new Error(err.message || 'Erro desconhecido'));
+            throw err;
+        } finally {
+            setIsPending(false);
+        }
+    };
+
+    return { mutate, isPending, error };
+};
+
+// Provider para o contexto de autenticação
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+    const [authState, setAuthState] = useState<AuthState>({
+        isAuthenticated: false,
+        isGuest: false,
+        user: null,
+        restaurantInfo: null,
+        token: null
+    });
+    const [loading, setLoading] = useState(true);
     const router = useRouter();
 
     // Verificar autenticação ao iniciar
     useEffect(() => {
+        const checkAuth = async () => {
+            setLoading(true);
+
+            try {
+                // Verificar se há um token JWT
+                const token = localStorage.getItem('auth_token');
+
+                if (token) {
+                    try {
+                        // Validar token no backend
+                        const response = await fetch(`${API_URL}/validate`, {
+                            headers: {
+                                Authorization: `Bearer ${token}`
+                            }
+                        });
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            console.log("Token validation data:", data);
+
+                            // Verificar o tipo de usuário
+                            if (data.userType === 'ADMIN') {
+                                setAuthState({
+                                    isAuthenticated: true,
+                                    isGuest: false,
+                                    user: {
+                                        _id: data.restaurant?._id,
+                                        firstName: data.restaurant?.name || "Admin",
+                                        email: data.restaurant?.admin?.email,
+                                        role: 'ADMIN',
+                                        isGuest: false
+                                    },
+                                    restaurantInfo: {
+                                        restaurant: data.restaurant,
+                                        unit: data.units?.[0]
+                                    },
+                                    token
+                                });
+                            } else {
+                                setAuthState({
+                                    isAuthenticated: true,
+                                    isGuest: false,
+                                    user: {
+                                        ...data.user,
+                                        isGuest: false
+                                    },
+                                    restaurantInfo: data.restaurantInfo,
+                                    token
+                                });
+                            }
+                        } else {
+                            // Token inválido
+                            checkGuestAuth();
+                        }
+                    } catch (error) {
+                        console.error('Erro ao validar token:', error);
+                        checkGuestAuth();
+                    }
+                } else {
+                    // Sem token JWT
+                    checkGuestAuth();
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        const checkGuestAuth = async () => {
+            // Verificar se há um token de convidado
+            const guestToken = localStorage.getItem('guest_token');
+
+            if (guestToken) {
+                // Verificar se tem informações da mesa
+                const storageKeys = Object.keys(localStorage);
+                const tableKey = storageKeys.find(key => key.startsWith('table-'));
+
+                if (tableKey) {
+                    const restaurantName = tableKey.replace('table-', '');
+                    const tableId = localStorage.getItem(tableKey);
+
+                    // Buscar o ID do restaurante com base no nome
+                    try {
+                        const response = await fetch(`${API_URL}/restaurant/by-slug/${restaurantName}`);
+
+                        if (response.ok) {
+                            const restaurant = await response.json();
+
+                            // Validar o token de convidado
+                            const validateResponse = await fetch(`${API_URL}/validate/guest`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    guestToken,
+                                    tableId,
+                                    restaurantId: restaurant._id
+                                })
+                            });
+
+                            if (validateResponse.ok) {
+                                setAuthState({
+                                    isAuthenticated: true,
+                                    isGuest: true,
+                                    user: {
+                                        firstName: `Mesa ${tableId}`,
+                                        isGuest: true
+                                    },
+                                    restaurantInfo: {
+                                        restaurant: {
+                                            _id: restaurant._id,
+                                            name: restaurant.name
+                                        }
+                                    },
+                                    token: guestToken
+                                });
+                                return;
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Erro ao validar token de convidado:', error);
+                    }
+                }
+            }
+
+            // Se chegou aqui, não há autenticação válida
+            setAuthState({
+                isAuthenticated: false,
+                isGuest: false,
+                user: null,
+                restaurantInfo: null,
+                token: null
+            });
+        };
+
         checkAuth();
     }, []);
 
-    // Função para verificar autenticação
-    const checkAuth = async () => {
-        setIsLoading(true);
-
+    // Função para login de usuários normais
+    const login = async ({ email, password }: LoginCredentials) => {
         try {
-            // Verificar se há um token de autenticação normal
-            const token = localStorage.getItem('auth_token');
-
-            // Verificar se há autenticação de convidado
-            const storageKeys = Object.keys(localStorage);
-            const tableKey = storageKeys.find(key => key.startsWith('table-'));
-            const hasTableNumber = !!tableKey;
-
-            if (token) {
-                // Usuário normal autenticado
-                try {
-                    // Fazer API call para validar token
-                    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/auth/validate`, {
-                        headers: {
-                            Authorization: `Bearer ${token}`
-                        }
-                    });
-
-                    if (response.ok) {
-                        const userData = await response.json();
-
-                        setAuth({
-                            isAuthenticated: true,
-                            isGuest: false,
-                            user: {
-                                ...userData,
-                                isGuest: false
-                            },
-                            token
-                        });
-                    } else {
-                        // Token inválido, limpar
-                        localStorage.removeItem('auth_token');
-
-                        // Verificar se pode autenticar como convidado
-                        if (hasTableNumber && tableKey) {
-                            authenticateAsGuest(tableKey);
-                        } else {
-                            setAuth({
-                                isAuthenticated: false,
-                                isGuest: false
-                            });
-                        }
-                    }
-                } catch (error) {
-                    console.error('Erro ao validar autenticação:', error);
-
-                    // Falha na verificação, verificar se pode autenticar como convidado
-                    if (hasTableNumber && tableKey) {
-                        authenticateAsGuest(tableKey);
-                    } else {
-                        setAuth({
-                            isAuthenticated: false,
-                            isGuest: false
-                        });
-                    }
-                }
-            } else if (hasTableNumber && tableKey) {
-                // Autenticar como convidado
-                authenticateAsGuest(tableKey);
-            } else {
-                // Sem autenticação
-                setAuth({
-                    isAuthenticated: false,
-                    isGuest: false
-                });
-            }
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // Função para autenticar como convidado
-    const authenticateAsGuest = (tableKey: string) => {
-        // Extrair nome do restaurante do tableKey
-        const restaurantName = tableKey.replace('table-', '');
-        const tableNumber = localStorage.getItem(tableKey);
-
-        // Criar um token temporário para convidado
-        const guestToken = `guest_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
-        localStorage.setItem('guest_token', guestToken);
-
-        // Configurar dados de autenticação como convidado
-        setAuth({
-            isAuthenticated: true,
-            isGuest: true,
-            user: {
-                firstName: `Convidado Mesa ${tableNumber}`,
-                role: 'CLIENT', // Definir role para convidados (geralmente será CLIENT)
-                isGuest: true
-            },
-            token: guestToken
-        });
-    };
-
-    // Função de login
-    const login = async (email: string, password: string) => {
-        try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/auth/login`, {
+            console.log('Tentando login com:', { email });
+            const response = await fetch(`${API_URL}/login/user`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ email, password }),
+                body: JSON.stringify({ email, password })
             });
 
             if (!response.ok) {
-                throw new Error('Credenciais inválidas');
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Erro ao fazer login');
             }
 
             const data = await response.json();
 
-            // Salvar token
+            // Salvar token no localStorage
             localStorage.setItem('auth_token', data.token);
 
             // Atualizar estado de autenticação
-            setAuth({
+            setAuthState({
                 isAuthenticated: true,
                 isGuest: false,
                 user: {
                     ...data.user,
                     isGuest: false
                 },
+                restaurantInfo: data.restaurantInfo,
                 token: data.token
             });
 
@@ -178,56 +329,295 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    // Função de logout
-    const logout = () => {
-        // Limpar tokens
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('guest_token');
+    // Função para login de convidados
+    const guestLogin = async ({ cpf, email }: { cpf: string, email: string }) => {
+        try {
+            console.log('Tentando login de convidado com CPF:', cpf);
+
+            // Verificar se tem informações da mesa
+            const storageKeys = Object.keys(localStorage);
+            const tableKey = storageKeys.find(key => key.startsWith('table-'));
+
+            if (!tableKey) {
+                throw new Error('Informações da mesa não encontradas. Por favor, escaneie o QR Code novamente.');
+            }
+
+            const restaurantName = tableKey.replace('table-', '');
+            const tableId = localStorage.getItem(tableKey);
+
+            // Criar um token de convidado
+            const guestToken = `guest_${Date.now()}_${cpf.replace(/\D/g, '')}`;
+            localStorage.setItem('guest_token', guestToken);
+
+            // Buscar restaurante
+            try {
+                const response = await fetch(`${API_URL}/restaurant/by-slug/${restaurantName}`);
+
+                if (response.ok) {
+                    const restaurant = await response.json();
+
+                    // Atualizar estado de autenticação
+                    setAuthState({
+                        isAuthenticated: true,
+                        isGuest: true,
+                        user: {
+                            firstName: `Mesa ${tableId}`,
+                            email: email, // Armazenar email do convidado
+                            isGuest: true
+                        },
+                        restaurantInfo: {
+                            restaurant: {
+                                _id: restaurant._id,
+                                name: restaurant.name
+                            }
+                        },
+                        token: guestToken
+                    });
+
+                    return { success: true };
+                } else {
+                    throw new Error('Restaurante não encontrado');
+                }
+            } catch (error) {
+                console.error('Erro ao buscar restaurante:', error);
+                throw new Error('Erro ao obter informações do restaurante');
+            }
+        } catch (error: any) {
+            console.error('Erro ao fazer login como convidado:', error);
+            throw error instanceof Error ? error : new Error(error.message || 'Erro desconhecido');
+        }
+    };
+
+    // Função para login de administrador
+    const adminLogin = async (email: string, password: string) => {
+        try {
+            console.log('Tentando login de admin com:', { email });
+            const response = await fetch(`${API_URL}/login/admin`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email, password, userType: 'ADMIN' })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Erro ao fazer login como administrador');
+            }
+
+            const data = await response.json();
+
+            // Salvar token no localStorage
+            localStorage.setItem('auth_token', data.token);
+
+            // Atualizar estado de autenticação
+            setAuthState({
+                isAuthenticated: true,
+                isGuest: false,
+                user: {
+                    _id: data.restaurant?._id,
+                    firstName: data.restaurant?.name || 'Admin',
+                    lastName: '',
+                    email: data.restaurant?.admin?.email,
+                    role: 'ADMIN',
+                    isGuest: false
+                },
+                restaurantInfo: {
+                    restaurant: data.restaurant,
+                    unit: data.unit
+                },
+                token: data.token
+            });
+
+            return data;
+        } catch (error) {
+            console.error('Erro ao fazer login como administrador:', error);
+            throw error;
+        }
+    };
+
+    // Função para logout
+    const logout = async () => {
+        try {
+            // Fazer logout no backend se estiver autenticado com JWT
+            if (authState.token && !authState.isGuest) {
+                await fetch(`${API_URL}/logout`, {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${authState.token}`
+                    }
+                });
+            }
+
+            // Limpar tokens e dados de autenticação
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('guest_token');
+
+            // Não remover as informações de mesa para permitir retornar como convidado
+
+            // Atualizar estado
+            setAuthState({
+                isAuthenticated: false,
+                isGuest: false,
+                user: null,
+                restaurantInfo: null,
+                token: null
+            });
+
+            // Redirecionar para a página inicial
+            router.push('/');
+        } catch (error) {
+            console.error('Erro ao fazer logout:', error);
+        }
+    };
+
+    // Função para registro de cliente
+    const registerClient = async (userData: any) => {
+        try {
+            const response = await fetch(`${API_URL}/register/client`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(userData)
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Erro ao registrar usuário');
+            }
+
+            // Se o registro incluir um token, salvar e autenticar
+            if (data.token) {
+                localStorage.setItem('auth_token', data.token);
+
+                // Atualizar estado de autenticação
+                setAuthState({
+                    isAuthenticated: true,
+                    isGuest: false,
+                    user: {
+                        ...data.user,
+                        isGuest: false
+                    },
+                    restaurantInfo: null,
+                    token: data.token
+                });
+            }
+
+            return data;
+        } catch (error) {
+            console.error('Erro ao registrar cliente:', error);
+            throw error;
+        }
+    };
+
+    // Função para registro de restaurante com admin
+    const registerRestaurant = async (data: any) => {
+        try {
+            console.log('Iniciando cadastro de restaurante:', {
+                email: data.email,
+                name: data.name
+            });
+
+            const response = await fetch(`${API_URL}/register/restaurant`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Erro ao registrar restaurante');
+            }
+
+            const responseData = await response.json();
+
+            // Salvar token no localStorage
+            if (responseData.token) {
+                localStorage.setItem('auth_token', responseData.token);
+
+                // Atualizar estado de autenticação
+                setAuthState({
+                    isAuthenticated: true,
+                    isGuest: false,
+                    user: {
+                        _id: responseData.user?._id,
+                        firstName: responseData.user?.firstName,
+                        lastName: responseData.user?.lastName,
+                        email: responseData.user?.email,
+                        role: 'ADMIN',
+                        isGuest: false
+                    },
+                    restaurantInfo: {
+                        restaurant: responseData.restaurant
+                    },
+                    token: responseData.token
+                });
+            }
+
+            return responseData;
+        } catch (error) {
+            console.error('Erro ao registrar restaurante:', error);
+            throw error;
+        }
+    };
+
+    // Função para autenticar como convidado
+    const authenticateAsGuest = (tableId: string, restaurantId: string, restaurantName: string) => {
+        // Criar token de convidado (formato: guest_timestamp_tableId_restaurantId)
+        const guestToken = `guest_${Date.now()}_${tableId}_${restaurantId}`;
+        localStorage.setItem('guest_token', guestToken);
+
+        // Salvar informações da mesa
+        localStorage.setItem(`table-${restaurantName}`, tableId);
 
         // Atualizar estado
-        setAuth({
-            isAuthenticated: false,
-            isGuest: false
+        setAuthState({
+            isAuthenticated: true,
+            isGuest: true,
+            user: {
+                firstName: `Mesa ${tableId}`,
+                isGuest: true
+            },
+            restaurantInfo: {
+                restaurant: {
+                    _id: restaurantId,
+                    name: restaurantName
+                }
+            },
+            token: guestToken
         });
+    };
 
-        // Redirecionar para a página inicial
-        router.push('/');
+    // Funções auxiliares para verificar roles
+    const isRole = (role: 'ADMIN' | 'MANAGER' | 'ATTENDANT' | 'CLIENT') => {
+        return authState.user?.role === role;
+    };
+
+    const isAdminOrManager = () => {
+        return authState.user?.role === 'ADMIN' || authState.user?.role === 'MANAGER';
+    };
+
+    const contextValue: AuthContextType = {
+        ...authState,
+        login,
+        guestLogin,
+        adminLogin,
+        logout,
+        registerClient,
+        registerRestaurant,
+        authenticateAsGuest,
+        isRole,
+        isAdminOrManager,
+        loading
     };
 
     return (
-        <AuthContext.Provider value={{ auth, isLoading, login, logout }
-        }>
+        <AuthContext.Provider value={contextValue}>
             {children}
         </AuthContext.Provider>
     );
-}
-
-// Hook para usar o contexto de autenticação
-export function useAuth() {
-    return useContext(AuthContext);
-}
-// Hook para verificar autenticação (mantido para compatibilidade)
-export function useAuthCheck(redirectToLogin = false) {
-    const { auth, isLoading } = useAuth();
-    const router = useRouter();
-
-    useEffect(() => {
-        if (!isLoading && !auth?.isAuthenticated && redirectToLogin) {
-            router.push('/login');
-        }
-    }, [auth, isLoading, redirectToLogin, router]);
-
-    return { data: auth, isLoading };
-}
-
-// Hook para obter informações da mesa
-export function useTableInfo(restaurantName: string) {
-    const [tableNumber, setTableNumber] = useState<string | null>(null);
-
-    useEffect(() => {
-        const storedTableNumber = localStorage.getItem(`table-${restaurantName}`);
-        setTableNumber(storedTableNumber);
-    }, [restaurantName]);
-
-    return { tableNumber };
-}
+};
