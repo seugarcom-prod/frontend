@@ -3,7 +3,7 @@ import { useState, useEffect, createContext, useContext, ReactNode } from 'react
 import { useRouter } from 'next/navigation';
 
 // API URL - Ajustado para garantir o URL base correto
-const API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:3333';
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:3333';
 
 // Tipo para credenciais de login
 interface LoginCredentials {
@@ -55,7 +55,7 @@ export interface AuthContextType extends AuthState {
     adminLogin: (email: string, password: string) => Promise<any>;
     logout: () => Promise<void>;
     registerClient: (userData: any) => Promise<any>;
-    registerRestaurant: (data: any) => Promise<any>;
+    registerAdminWithRestaurant: (data: any) => Promise<any>;
     authenticateAsGuest: (tableId: string, restaurantId: string, restaurantName: string) => void;
     isRole: (role: 'ADMIN' | 'MANAGER' | 'ATTENDANT' | 'CLIENT') => boolean;
     isAdminOrManager: () => boolean;
@@ -74,7 +74,7 @@ const AuthContext = createContext<AuthContextType>({
     adminLogin: async () => ({}),
     logout: async () => { },
     registerClient: async () => ({}),
-    registerRestaurant: async () => ({}),
+    registerAdminWithRestaurant: async () => ({}),
     authenticateAsGuest: () => { },
     isRole: () => false,
     isAdminOrManager: () => false,
@@ -150,67 +150,87 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // Verificar autenticação ao iniciar
     useEffect(() => {
+        // Em useAuth.tsx, função checkAuth
         const checkAuth = async () => {
             setLoading(true);
 
             try {
-                // Verificar se há um token JWT
                 const token = localStorage.getItem('auth_token');
+                console.log("Token encontrado:", !!token);
 
-                if (token) {
-                    try {
-                        // Validar token no backend
-                        const response = await fetch(`${API_URL}/validate`, {
-                            headers: {
-                                Authorization: `Bearer ${token}`
-                            }
-                        });
+                if (!token) {
+                    setAuthState({
+                        isAuthenticated: false,
+                        isGuest: false,
+                        user: null,
+                        restaurantInfo: null,
+                        token: null
+                    });
+                    return;
+                }
 
-                        if (response.ok) {
-                            const data = await response.json();
-                            console.log("Token validation data:", data);
-
-                            // Verificar o tipo de usuário
-                            if (data.userType === 'ADMIN') {
-                                setAuthState({
-                                    isAuthenticated: true,
-                                    isGuest: false,
-                                    user: {
-                                        _id: data.restaurant?._id,
-                                        firstName: data.restaurant?.name || "Admin",
-                                        email: data.restaurant?.admin?.email,
-                                        role: 'ADMIN',
-                                        isGuest: false
-                                    },
-                                    restaurantInfo: {
-                                        restaurant: data.restaurant,
-                                        unit: data.units?.[0]
-                                    },
-                                    token
-                                });
-                            } else {
-                                setAuthState({
-                                    isAuthenticated: true,
-                                    isGuest: false,
-                                    user: {
-                                        ...data.user,
-                                        isGuest: false
-                                    },
-                                    restaurantInfo: data.restaurantInfo,
-                                    token
-                                });
-                            }
-                        } else {
-                            // Token inválido
-                            checkGuestAuth();
+                // Tente validar o token no backend
+                try {
+                    const response = await fetch(`${API_URL}/validate`, {
+                        method: 'GET',
+                        headers: {
+                            Authorization: `Bearer ${token}`
                         }
-                    } catch (error) {
-                        console.error('Erro ao validar token:', error);
-                        checkGuestAuth();
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+
+                        if (data.user.role === 'ADMIN') {
+                            setAuthState({
+                                isAuthenticated: true,
+                                isGuest: false,
+                                user: {
+                                    _id: data.restaurant?._id,
+                                    firstName: data.restaurant?.name || "Admin",
+                                    email: data.restaurant?.admin?.email,
+                                    role: 'ADMIN',
+                                    isGuest: false
+                                },
+                                restaurantInfo: {
+                                    restaurant: data.restaurant,
+                                    unit: data.units?.[0]
+                                },
+                                token
+                            });
+                        } else {
+                            setAuthState({
+                                isAuthenticated: true,
+                                isGuest: false,
+                                user: {
+                                    ...data.user,
+                                    isGuest: false
+                                },
+                                restaurantInfo: data.restaurantInfo,
+                                token
+                            });
+                        }
+                    } else {
+                        // Token inválido, limpar e definir como não autenticado
+                        localStorage.removeItem('auth_token');
+                        setAuthState({
+                            isAuthenticated: false,
+                            isGuest: false,
+                            user: null,
+                            restaurantInfo: null,
+                            token: null
+                        });
                     }
-                } else {
-                    // Sem token JWT
-                    checkGuestAuth();
+                } catch (error) {
+                    console.error("Erro ao validar token:", error);
+                    localStorage.removeItem('auth_token');
+                    setAuthState({
+                        isAuthenticated: false,
+                        isGuest: false,
+                        user: null,
+                        restaurantInfo: null,
+                        token: null
+                    });
                 }
             } finally {
                 setLoading(false);
@@ -391,14 +411,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Função para login de administrador
     const adminLogin = async (email: string, password: string) => {
         try {
-            console.log('Tentando login de admin com:', { email });
+            console.log("Enviando requisição de login para:", `${API_URL}/login/admin`);
+            console.log("Dados:", { email: email, password: "***" });
             const response = await fetch(`${API_URL}/login/admin`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ email, password, userType: 'ADMIN' })
+                body: JSON.stringify({ email, password, role: 'ADMIN' })
             });
+
+            console.log("Status da resposta:", response.status);
+            const responseData = await response.json();
+            console.log("Resposta:", responseData);
 
             if (!response.ok) {
                 const errorData = await response.json();
@@ -513,9 +538,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     // Função para registro de restaurante com admin
-    const registerRestaurant = async (data: any) => {
+    const registerAdminWithRestaurant = async (data: any) => {
         try {
-            console.log('Iniciando cadastro de restaurante:', {
+            console.log('Iniciando cadastro de admin com restaurante:', {
                 email: data.email,
                 name: data.name
             });
@@ -534,9 +559,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
 
             const responseData = await response.json();
+            console.log('Resposta do cadastro:', responseData);
 
             // Salvar token no localStorage
             if (responseData.token) {
+                console.log('Token recebido, salvando no localStorage');
                 localStorage.setItem('auth_token', responseData.token);
 
                 // Atualizar estado de autenticação
@@ -544,10 +571,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     isAuthenticated: true,
                     isGuest: false,
                     user: {
-                        _id: responseData.user?._id,
-                        firstName: responseData.user?.firstName,
-                        lastName: responseData.user?.lastName,
-                        email: responseData.user?.email,
+                        _id: responseData.restaurant?._id,
+                        firstName: responseData.restaurant?.name || "Admin",
+                        email: responseData.restaurant?.admin?.email,
                         role: 'ADMIN',
                         isGuest: false
                     },
@@ -556,6 +582,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     },
                     token: responseData.token
                 });
+
+                // ADICIONE ESTE CÓDIGO: Redirecionamento explícito para a página admin
+                console.log('Redirecionando para a página de admin');
+
+                // Se você tem acesso ao router do Next.js aqui:
+                setTimeout(() => {
+                    window.location.href = '/admin'; // Isso forçará um reload completo da página
+                }, 100);
             }
 
             return responseData;
@@ -608,7 +642,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         adminLogin,
         logout,
         registerClient,
-        registerRestaurant,
+        registerAdminWithRestaurant,
         authenticateAsGuest,
         isRole,
         isAdminOrManager,

@@ -23,6 +23,7 @@ export function middleware(request: NextRequest) {
         '/admin',
         '/settings',
         '/restaurant-management',
+        '/restaurant/unit/:path*',
     ];
 
     // Verificar tokens nos cookies
@@ -76,14 +77,5 @@ export function middleware(request: NextRequest) {
 
 // Configurar quais rotas devem passar pelo middleware
 export const config = {
-    matcher: [
-        /*
-         * Match all request paths except:
-         * 1. /api routes
-         * 2. /_next (Next.js internals)
-         * 3. /fonts, /images (static files)
-         * 4. /favicon.ico, /sitemap.xml (static files)
-         */
-        '/((?!api|_next|fonts|images|favicon.ico|sitemap.xml).*)',
-    ],
+    matcher: ['/admin/:path*', '/restaurant/:path*']
 };

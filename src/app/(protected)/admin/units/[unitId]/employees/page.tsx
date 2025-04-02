@@ -4,18 +4,18 @@ import React from 'react';
 import { useParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import EmployeeList from '@/components/employee/EmployeeList';
-import { AuthProvider } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function EmployeesPage() {
     const params = useParams();
     const unitId = params.unitId as string;
-    const { data: authData, isLoading: isAuthLoading } = useAuth(true);
+    const { isAuthenticated, isRole, loading } = useAuth();
     console.log("Auth data:", {
-        isAuthenticated: authData?.isAuthenticated,
-        userRole: authData?.user?.role,
+        isAuthenticated: isAuthenticated,
+        userRole: isRole('ADMIN'),
     });
 
-    if (isAuthLoading) {
+    if (loading) {
         return (
             <div className="container mx-auto px-4 py-8">
                 <div className="animate-pulse">

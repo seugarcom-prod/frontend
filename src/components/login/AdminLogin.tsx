@@ -11,6 +11,8 @@ import { ArrowRight, Loader2 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || '';
+
 export function AdminLogin() {
     const router = useRouter();
     const { toast } = useToast();
@@ -28,6 +30,7 @@ export function AdminLogin() {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    // Em AdminLogin.tsx
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -40,19 +43,17 @@ export function AdminLogin() {
         setError('');
 
         try {
-            // Usar função do contexto de autenticação
+            // Usar a função adminLogin do hook useAuth
             const result = await adminLogin(formData.email, formData.password);
-            console.log('Login admin bem-sucedido:', result);
 
             toast({
                 title: 'Login realizado com sucesso',
                 description: 'Você será redirecionado para o painel administrativo'
             });
 
-            // Redirecionar para o painel admin
             router.push('/admin');
         } catch (error: any) {
-            console.error('Erro no login admin:', error);
+            console.error('Erro no login:', error);
             setError(error.message || 'Ocorreu um erro ao tentar fazer login. Verifique suas credenciais.');
         } finally {
             setIsLoading(false);
