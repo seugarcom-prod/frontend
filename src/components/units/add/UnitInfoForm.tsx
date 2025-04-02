@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,9 +16,10 @@ import { RestaurantUnit } from "./AddRestaurantUnit";
 interface UnitInfoFormProps {
   unit: RestaurantUnit;
   updateUnit: (data: Partial<RestaurantUnit>) => void;
+  matrixCNPJ?: string; // Adicionar CNPJ da matriz como prop
 }
 
-export default function UnitInfoForm({ unit, updateUnit }: UnitInfoFormProps) {
+export default function UnitInfoForm({ unit, updateUnit, matrixCNPJ }: UnitInfoFormProps) {
   const [cnpjPart1, setCnpjPart1] = useState(unit.cnpj.split('/')[0] || "");
   const [cnpjPart2, setCnpjPart2] = useState(
     unit.cnpj.includes('/') ? unit.cnpj.split('/')[1].split('-')[0] : ""
@@ -27,27 +28,53 @@ export default function UnitInfoForm({ unit, updateUnit }: UnitInfoFormProps) {
     unit.cnpj.includes('-') ? unit.cnpj.split('-')[1] : ""
   );
 
+  // Efeito para atualizar os campos de CNPJ quando matrixCNPJ mudar ou quando useMatrixCNPJ for marcado
+  useEffect(() => {
+    if (unit.useMatrixCNPJ && matrixCNPJ) {
+      // Formatar o CNPJ da matriz para os campos separados
+      const formattedCNPJ = matrixCNPJ.replace(/[^\d]/g, '');
+      if (formattedCNPJ.length >= 14) {
+        const part1 = formattedCNPJ.substring(0, 8);
+        const part2 = formattedCNPJ.substring(8, 12);
+        const part3 = formattedCNPJ.substring(12, 14);
+
+        setCnpjPart1(formatCnpjPart1(part1));
+        setCnpjPart2(part2);
+        setCnpjPart3(part3);
+
+        // Atualizar o CNPJ completo no estado do componente pai
+        updateCnpj(part1, part2, part3);
+      }
+    }
+  }, [unit.useMatrixCNPJ, matrixCNPJ]);
+
   const handleCnpjPart1Change = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, '');
-    if (value.length <= 10) {
-      setCnpjPart1(value);
-      updateCnpj(value, cnpjPart2, cnpjPart3);
+    if (!unit.useMatrixCNPJ) { // Somente permitir edição se não estiver usando CNPJ da matriz
+      const value = e.target.value.replace(/\D/g, '');
+      if (value.length <= 10) {
+        setCnpjPart1(value);
+        updateCnpj(value, cnpjPart2, cnpjPart3);
+      }
     }
   };
 
   const handleCnpjPart2Change = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, '');
-    if (value.length <= 4) {
-      setCnpjPart2(value);
-      updateCnpj(cnpjPart1, value, cnpjPart3);
+    if (!unit.useMatrixCNPJ) {
+      const value = e.target.value.replace(/\D/g, '');
+      if (value.length <= 4) {
+        setCnpjPart2(value);
+        updateCnpj(cnpjPart1, value, cnpjPart3);
+      }
     }
   };
 
   const handleCnpjPart3Change = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, '');
-    if (value.length <= 2) {
-      setCnpjPart3(value);
-      updateCnpj(cnpjPart1, cnpjPart2, value);
+    if (!unit.useMatrixCNPJ) {
+      const value = e.target.value.replace(/\D/g, '');
+      if (value.length <= 2) {
+        setCnpjPart3(value);
+        updateCnpj(cnpjPart1, cnpjPart2, value);
+      }
     }
   };
 
@@ -98,6 +125,7 @@ export default function UnitInfoForm({ unit, updateUnit }: UnitInfoFormProps) {
                 onChange={handleCnpjPart1Change}
                 placeholder="12.345.678"
                 className="w-[370px] h-10"
+                disabled={unit.useMatrixCNPJ}
               />
               <span className="text-gray-500">/</span>
               <Input
@@ -106,6 +134,7 @@ export default function UnitInfoForm({ unit, updateUnit }: UnitInfoFormProps) {
                 onChange={handleCnpjPart2Change}
                 placeholder="0001"
                 className="w-[80px] h-10"
+                disabled={unit.useMatrixCNPJ}
               />
               <span className="text-gray-500">-</span>
               <Input
@@ -114,6 +143,7 @@ export default function UnitInfoForm({ unit, updateUnit }: UnitInfoFormProps) {
                 onChange={handleCnpjPart3Change}
                 placeholder="90"
                 className="w-14 h-10"
+                disabled={unit.useMatrixCNPJ}
               />
             </div>
             <div className="my-4">

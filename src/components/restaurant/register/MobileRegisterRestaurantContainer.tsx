@@ -16,7 +16,7 @@ import AdminCredentialsForm from '@/components/users/admin/AdminCredentialsForm'
 
 export default function MobileRestaurantRegisterContainer() {
     const router = useRouter();
-    const { registerRestaurant } = useAuth();
+    const { registerAdminWithRestaurant } = useAuth();
 
     // Estado para controlar o passo atual
     const [step, setStep] = useState(1);
@@ -207,7 +207,7 @@ export default function MobileRestaurantRegisterContainer() {
             };
 
             // Chamar a função de autenticação para registrar
-            await registerRestaurant(payload);
+            await registerAdminWithRestaurant(payload);
 
             // Redirecionar para dashboard após sucesso
             router.push('/admin');

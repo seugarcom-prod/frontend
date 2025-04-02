@@ -9,62 +9,86 @@ interface AdminGuardProps {
     requiredRole?: 'ADMIN' | 'MANAGER' | 'ANY_ADMIN';
 }
 
-/**
- * Componente AdminGuard
- * 
- * Este componente protege rotas administrativas verificando se o usuário:
- * 1. Está autenticado
- * 2. Possui a role adequada (ADMIN, MANAGER ou qualquer uma das duas)
- * 
- * Caso o usuário não atenda aos requisitos, ele será redirecionado para a página de login.
- */
 export default function AdminGuard({
     children,
-    requiredRole = 'ANY_ADMIN'
+    requiredRole = 'ADMIN'
 }: AdminGuardProps) {
     const { isAuthenticated, user, loading } = useAuth();
     const router = useRouter();
     const [authorized, setAuthorized] = useState(false);
+    const [redirectAttempted, setRedirectAttempted] = useState(false);
 
+    // Verificação imediata de token ao montar o componente
     useEffect(() => {
-        // Verificar se está carregando
-        if (loading) {
-            return;
+        // Verificação rápida inicial - se há token, permitir renderização
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+            setAuthorized(true);
         }
+    }, []);
 
-        // Verificar se está autenticado
-        if (!isAuthenticated) {
+    // Verificação completa após o carregamento
+    useEffect(() => {
+        // Se já está autorizado, não fazer verificações adicionais
+        if (authorized) return;
+
+        // Se já tentou redirecionar, não tentar novamente
+        if (redirectAttempted) return;
+
+        // Se ainda está carregando, aguardar
+        if (loading) return;
+
+        // Verificação rápida de token
+        const token = localStorage.getItem('auth_token');
+
+        // Sem token = redirecionar para login
+        if (!token) {
+            setRedirectAttempted(true);
             router.push('/login');
             return;
         }
 
-        // Obter a role do usuário
-        const userRole = user?.role;
+        // Verificar role apenas se autenticado e tiver dados do usuário
+        if (isAuthenticated && user) {
+            const userRole = user.role;
+            let hasRequiredRole = false;
 
-        // Verificar se tem a role adequada
-        let hasRequiredRole = false;
+            if (requiredRole === 'ANY_ADMIN') {
+                hasRequiredRole = userRole === 'ADMIN' || userRole === 'MANAGER';
+            } else {
+                hasRequiredRole = userRole === requiredRole;
+            }
 
-        if (requiredRole === 'ADMIN') {
-            hasRequiredRole = userRole === 'ADMIN';
-        } else if (requiredRole === 'MANAGER') {
-            hasRequiredRole = userRole === 'MANAGER';
-        } else if (requiredRole === 'ANY_ADMIN') {
-            hasRequiredRole = userRole === 'ADMIN' || userRole === 'MANAGER';
+            if (!hasRequiredRole) {
+                setRedirectAttempted(true);
+                router.push('/unauthorized');
+                return;
+            }
         }
 
-        if (!hasRequiredRole) {
-            // Redirecionar para página de não autorizado
-            router.push('/unauthorized');
-            return;
-        }
-
-        // Se chegou até aqui, está autorizado
+        // Se passou pelas verificações ou tem token, autorizar
         setAuthorized(true);
+    }, [loading, isAuthenticated, user, router, authorized, redirectAttempted, requiredRole]);
 
-    }, [isAuthenticated, loading, requiredRole, router]);
+    // Timeout reduzido para 2 segundos
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            if (!authorized && !redirectAttempted) {
+                const token = localStorage.getItem('auth_token');
+                if (token) {
+                    setAuthorized(true);
+                } else {
+                    setRedirectAttempted(true);
+                    router.push('/login');
+                }
+            }
+        }, 2000); // Reduzido para 2 segundos
 
-    // Mostrar indicador de carregamento enquanto verifica a autenticação
-    if (loading || !authorized) {
+        return () => clearTimeout(timeoutId);
+    }, [authorized, redirectAttempted, router]);
+
+    // Mostrar carregamento apenas se não estiver autorizado
+    if (!authorized) {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
@@ -72,6 +96,6 @@ export default function AdminGuard({
         );
     }
 
-    // Se estiver autorizado, renderizar o conteúdo
+    // Se estiver autorizado, renderizar conteúdo
     return <>{children}</>;
 }

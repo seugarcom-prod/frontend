@@ -1,6 +1,7 @@
 "use client"
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/dashboard/SideMenu';
 import Header from '@/components/header/Header';
 import ChartCard from '@/components/cards/ChartCard';
@@ -10,9 +11,21 @@ import { useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 import { Pencil, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function Admin() {
   const { isOpen } = useSidebar();
+  const { loading, user } = useAuth();
+
+  // Mostrar tela de carregamento enquanto verifica autenticação
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <div className="w-16 h-16 border-4 border-t-primary border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+        <p className="mt-4 text-lg">Carregando painel de administração...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col static h-screen bg-background">

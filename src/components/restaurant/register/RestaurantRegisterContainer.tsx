@@ -16,7 +16,7 @@ import AdminCredentialsForm from '@/components/users/admin/AdminCredentialsForm'
 
 export default function RestaurantRegisterContainer() {
     const router = useRouter();
-    const { registerRestaurant } = useAuth();
+    const { registerAdminWithRestaurant } = useAuth();
     const isMobile = useIsMobile();
 
     // Estado para controlar o passo atual
@@ -263,7 +263,19 @@ export default function RestaurantRegisterContainer() {
             }
 
             // Redirecionar após sucesso
-            router.push('/admin');
+            if (result.token) {
+                // IMPORTANTE: Armazene o token antes de redirecionar
+                localStorage.setItem('auth_token', result.token);
+                console.log("Token armazenado:", result.token);
+
+                // Adicione pequeno delay antes de redirecionar (pode ajudar com race conditions)
+                setTimeout(() => {
+                    router.push('/admin');
+                }, 300);
+            } else {
+                console.error("Token não recebido na resposta do servidor");
+                setError("Erro na autenticação. Por favor, tente novamente.");
+            }
         } catch (error: any) {
             console.error('Erro durante o cadastro:', error);
             setError(error.message || 'Ocorreu um erro ao criar sua conta.');

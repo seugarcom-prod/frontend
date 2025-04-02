@@ -1,23 +1,28 @@
-import RootLayout from "@/layout";
-import "../globals.css";
+'use client';
 
-export const metadata = {
-    title: "Seu Garçom",
-    description: "Frontend",
-};
+import { useAuth } from '@/hooks/useAuth';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
-export default function ProtectedLayout({
-    children,
-    params
-}: {
-    children: React.ReactNode
-    params: { locale: string }
-}) {
-    return (
-        <html lang={params.locale}>
-            <RootLayout>
-                {children}
-            </RootLayout>
-        </html>
-    );
+import { ReactNode } from 'react';
+
+export default function ProtectedLayout({ children }: { children: ReactNode }) {
+    const { isAuthenticated, loading } = useAuth();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (!loading && !isAuthenticated) {
+            router.replace('/login');
+        }
+    }, [isAuthenticated, loading, router]);
+
+    if (loading) {
+        return <div>Carregando...</div>;
+    }
+
+    if (!isAuthenticated) {
+        return null;
+    }
+
+    return <>{children}</>;
 }

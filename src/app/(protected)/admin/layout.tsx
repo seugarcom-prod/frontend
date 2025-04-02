@@ -11,7 +11,7 @@ export default function AdminLayout({
 }) {
     return (
         <Providers>
-            <AdminGuard requiredRole="ANY_ADMIN">
+            <AdminGuard requiredRole="ADMIN">
                 <SidebarProvider>
                     {children}
                 </SidebarProvider>
