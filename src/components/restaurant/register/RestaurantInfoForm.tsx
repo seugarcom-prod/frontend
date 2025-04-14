@@ -10,37 +10,11 @@ import {
     SelectValue
 } from "@/components/ui/select";
 import { useIsMobile } from "@/hooks/useMobile";
-import {
-    formatCnpj,
-    handleCnpjChange,
-    handleCnpjPart1Change,
-    handleCnpjPart2Change,
-    handleCnpjPart3Change,
-    isValidCnpj,
-} from '@/utils/formatCnpj';
+import { isValidCnpj } from '@/utils/formatCnpj';
+import { useRestaurantFormStore } from "@/stores";
 
-interface RestaurantInfoFormProps {
-    formData: {
-        cnpjPart1: string;
-        cnpjPart2: string;
-        cnpjPart3: string;
-        socialName: string;
-        name: string;
-        phone: string;
-        specialty: string;
-    };
-    updateFormData: (data: Partial<{
-        cnpjPart1: string;
-        cnpjPart2: string;
-        cnpjPart3: string;
-        socialName: string;
-        name: string;
-        phone: string;
-        specialty: string;
-    }>) => void;
-}
-
-export default function RestaurantInfoForm({ formData, updateFormData }: RestaurantInfoFormProps) {
+export default function RestaurantInfoForm() {
+    const { formData, updateFormData } = useRestaurantFormStore();
     const isMobile = useIsMobile();
 
     const validateCnpj = () => {

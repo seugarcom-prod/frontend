@@ -6,7 +6,6 @@ import { useParams } from 'next/navigation';
 
 // Este componente funciona como um adaptador para o componente de login de cliente existente
 export default function CustomerLoginAdapter() {
-    const { customerLogin } = useAuth();
     const [isAdapterReady, setIsAdapterReady] = useState(false);
     const params = useParams();
     const restaurantName = params.restaurantName as string;

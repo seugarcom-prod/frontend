@@ -1,30 +1,17 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-import { Providers } from "@/providers/queryProvider";
-import { ToastProvider } from "@/components/toast/toastContext";
+'use client';
 
-const inter = Inter({ subsets: ["latin"] });
+import './globals.css'
+import type { ReactNode } from 'react';
+import Providers from '@/providers/providers';
 
-export const metadata: Metadata = {
-  title: "Sr. Garçom",
-  description: "Sistema de gestão para restaurantes",
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function AppLayout({
+  children
+}: {
+  children: ReactNode
+}) {
   return (
-    <html lang="pt-BR">
-      <body className={inter.className}>
-        <Providers>
-          <ToastProvider>
-            {children}
-          </ToastProvider>
-        </Providers>
-      </body>
-    </html>
+    <Providers>
+      {children}
+    </Providers>
   );
 }

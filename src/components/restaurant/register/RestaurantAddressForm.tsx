@@ -3,36 +3,13 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useRestaurantFormStore } from "@/stores";
+import { formatCep } from "@/utils/formatCep";
 
-interface RestaurantAddressFormProps {
-    formData: {
-        zipCode: string;
-        street: string;
-        number: string;
-        complement: string;
-    };
-    updateFormData: (data: Partial<{
-        zipCode: string;
-        street: string;
-        number: string;
-        complement: string;
-    }>) => void;
-}
 
-export default function RestaurantAddressForm({ formData, updateFormData }: RestaurantAddressFormProps) {
+export default function RestaurantAddressForm() {
     const [isLoading, setIsLoading] = useState(false);
-
-    const formatCep = (cep: string) => {
-        // Remove tudo que não for número
-        cep = cep.replace(/\D/g, "");
-
-        // Formato: XXXXX-XXX
-        if (cep.length > 5) {
-            cep = `${cep.substring(0, 5)}-${cep.substring(5, 8)}`;
-        }
-
-        return cep;
-    };
+    const { formData, updateFormData } = useRestaurantFormStore();
 
     const handleCepChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const rawCep = e.target.value.replace(/\D/g, "");

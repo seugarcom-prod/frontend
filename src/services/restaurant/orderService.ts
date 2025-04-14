@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || '/api';
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || '/';
 
 // Interface para pedido
 export interface IOrder {

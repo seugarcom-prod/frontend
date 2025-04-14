@@ -1,17 +1,16 @@
-import React from 'react'
-import Link from 'next/link'
-import { Card, CardContent } from '../ui/card'
-import { User2, Store, UserCog, UserCog2 } from 'lucide-react'
-import { useParams } from 'next/navigation';
+// components/ActionCards.tsx
+import React from 'react';
+import Link from 'next/link';
+import { Card, CardContent } from '../ui/card';
+import { UserCog2, Store } from 'lucide-react';
+import { useRestaurantId } from '@/hooks/useRestaurantId';
 
 export function ActionCards() {
-    const params = useParams();
-    const unitId = params.unitId as string;
+    const { restaurantId } = useRestaurantId();
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Gerenciar funcionários */}
-            <Link href={`/admin/units/67da463fc903f957b6309368/employees`}>
+            <Link href={`/restaurant/${restaurantId}/units/employees`}>
                 <Card className="hover:shadow-md transition-shadow border border-border bg-transparent">
                     <CardContent className="p-6">
                         <div className="flex items-start gap-4">
@@ -20,17 +19,13 @@ export function ActionCards() {
                             </div>
                             <div>
                                 <h3 className="text-lg font-medium mb-1 text-primary">Gerenciar funcionários</h3>
-                                <p className="text-sm text-gray-500">
-                                    Gerencie seus funcionários de forma rápida e prática.
-                                </p>
+                                <p className="text-sm text-gray-500">Gerencie seus funcionários de forma rápida e prática.</p>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
             </Link>
-
-            {/* Adicionar unidade */}
-            <Link href={`/restaurant/unit/register`}>
+            <Link href={`/restaurant/${restaurantId}/units/register`}>
                 <Card className="hover:shadow-md transition-shadow border border-border bg-transparent">
                     <CardContent className="p-6">
                         <div className="flex items-start gap-4">
@@ -39,14 +34,12 @@ export function ActionCards() {
                             </div>
                             <div>
                                 <h3 className="text-lg font-medium mb-1 text-primary">Adicionar uma nova unidade</h3>
-                                <p className="text-sm text-gray-500">
-                                    Adicione uma nova unidade de sua loja e tenha acesso a dados individuais.
-                                </p>
+                                <p className="text-sm text-gray-500">Adicione uma nova unidade de sua loja e tenha acesso a dados individuais.</p>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
             </Link>
         </div>
-    )
+    );
 }

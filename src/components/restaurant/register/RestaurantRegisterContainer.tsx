@@ -1,3 +1,4 @@
+// components/RestaurantRegisterContainer.tsx
 'use client';
 
 import React, { useState } from 'react';
@@ -6,6 +7,7 @@ import Image from 'next/image';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/useMobile';
 import { Button } from '@/components/ui/button';
+import { useRestaurantFormStore, useRestaurantStore } from '@/stores';
 
 // Componentes de formulário
 import AdminInfoForm from '@/components/users/admin/AdminInfoForm';
@@ -19,58 +21,17 @@ export default function RestaurantRegisterContainer() {
     const { registerAdminWithRestaurant } = useAuth();
     const isMobile = useIsMobile();
 
-    // Estado para controlar o passo atual
-    const [step, setStep] = useState(1);
+    // Usar Zustand para gerenciar o estado do formulário
+    const { formData, currentStep, setFormStep, resetForm } = useRestaurantFormStore();
+
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
-    // Estado para dados do formulário
-    const [formData, setFormData] = useState({
-        // Dados do responsável (ADMIN)
-        adminName: '',
-        adminCpf: '',
-
-        // Dados da loja (RESTAURANT)
-        cnpjPart1: '',
-        cnpjPart2: '',
-        cnpjPart3: '',
-        socialName: '',
-        name: '',
-        phone: '',
-        specialty: '',
-
-        // Endereço da loja
-        zipCode: '',
-        street: '',
-        number: '',
-        complement: '',
-
-        // Horários de funcionamento
-        schedules: [
-            // Formatos iniciais com horários padrão
-            {
-                days: ['sex', 'sab', 'dom'],
-                opens: '08:00',
-                closes: '14:00'
-            }
-        ],
-
-        // Credenciais de acesso
-        email: '',
-        password: '',
-        confirmPassword: ''
-    });
-
-    // Função genérica para atualizar o estado do formulário
-    const updateFormData = (data: Partial<typeof formData>) => {
-        setFormData(prev => ({ ...prev, ...data }));
-    };
 
     // Validação específica para cada passo
     const validateCurrentStep = (): boolean => {
         setError(null);
 
-        switch (step) {
+        switch (currentStep) {
             case 1: // Responsável (Admin)
                 if (!formData.adminName) {
                     setError("Nome do responsável é obrigatório");
@@ -159,19 +120,18 @@ export default function RestaurantRegisterContainer() {
     // Função para avançar ao próximo passo
     const nextStep = () => {
         if (validateCurrentStep()) {
-            setStep(prev => prev + 1);
+            setFormStep(currentStep + 1);
             window.scrollTo(0, 0);
         }
     };
 
     // Função para voltar ao passo anterior
     const prevStep = () => {
-        setStep(prev => prev - 1);
+        setFormStep(currentStep - 1);
         window.scrollTo(0, 0);
     };
 
     // Função para submeter o formulário completo
-    // Dentro da função handleSubmit no RestaurantRegisterContainer.tsx
     const handleSubmit = async () => {
         if (!validateCurrentStep()) return;
 
@@ -179,7 +139,7 @@ export default function RestaurantRegisterContainer() {
         setError(null);
 
         try {
-            // Preparar os dados para API (mantém a mesma estrutura)
+            // Preparar os dados para API
             const firstName = formData.adminName.split(' ')[0];
             const lastName = formData.adminName.split(' ').slice(1).join(' ');
 
@@ -236,45 +196,25 @@ export default function RestaurantRegisterContainer() {
                 businessHours
             };
 
-            console.log('Enviando requisição para o backend...');
+            // Usar o hook de autenticação para registrar
+            const result = await registerAdminWithRestaurant(payload);
 
-            // URL para registro
-            const url = `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/register/restaurant`;
+            if (result.success) {
+                // Limpar o formulário após sucesso
+                resetForm();
 
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload)
-            });
+                // Obter o ID do restaurante do useRestaurantStore
+                const restaurantId = useRestaurantStore.getState().restaurantId;
 
-            if (!response.ok) {
-                // Tratamento de erro...
-                throw new Error(`Erro ao registrar.`);
-            }
-
-            const result = await response.json();
-            console.log('Resposta do servidor:', result);
-
-            // Salvar token
-            if (result && result.token) {
-                localStorage.setItem('auth_token', result.token);
-            }
-
-            // Redirecionar após sucesso
-            if (result.token) {
-                // IMPORTANTE: Armazene o token antes de redirecionar
-                localStorage.setItem('auth_token', result.token);
-                console.log("Token armazenado:", result.token);
-
-                // Adicione pequeno delay antes de redirecionar (pode ajudar com race conditions)
-                setTimeout(() => {
-                    router.push('/admin');
-                }, 300);
+                // Redirecionar para o dashboard com o ID do restaurante
+                if (restaurantId) {
+                    router.push(`/restaurant/${restaurantId}/dashboard`);
+                } else {
+                    // Fallback para a resposta da API se o store não tiver o ID ainda
+                    router.push(`/restaurant/${result.restaurant?._id}/dashboard`);
+                }
             } else {
-                console.error("Token não recebido na resposta do servidor");
-                setError("Erro na autenticação. Por favor, tente novamente.");
+                setError(result.message);
             }
         } catch (error: any) {
             console.error('Erro durante o cadastro:', error);
@@ -283,49 +223,20 @@ export default function RestaurantRegisterContainer() {
             setIsLoading(false);
         }
     };
+
     // Renderizar o formulário atual baseado no passo
     const renderCurrentStep = () => {
-        switch (step) {
+        switch (currentStep) {
             case 1:
-                return (
-                    <AdminInfoForm
-                        formData={formData}
-                        updateFormData={updateFormData}
-                    />
-                );
-
+                return <AdminInfoForm />;
             case 2:
-                return (
-                    <RestaurantInfoForm
-                        formData={formData}
-                        updateFormData={updateFormData}
-                    />
-                );
-
+                return <RestaurantInfoForm />;
             case 3:
-                return (
-                    <RestaurantAddressForm
-                        formData={formData}
-                        updateFormData={updateFormData}
-                    />
-                );
-
+                return <RestaurantAddressForm />;
             case 4:
-                return (
-                    <RestaurantScheduleForm
-                        formData={formData}
-                        updateFormData={updateFormData}
-                    />
-                );
-
+                return <RestaurantScheduleForm />;
             case 5:
-                return (
-                    <AdminCredentialsForm
-                        formData={formData}
-                        updateFormData={updateFormData}
-                    />
-                );
-
+                return <AdminCredentialsForm />;
             default:
                 return null;
         }
@@ -335,7 +246,7 @@ export default function RestaurantRegisterContainer() {
     const renderNavigationButtons = () => {
         return (
             <div className="mt-8 flex justify-between">
-                {step === 1 ? (
+                {currentStep === 1 ? (
                     <Button
                         variant="outline"
                         onClick={() => router.push('/')}
@@ -357,11 +268,11 @@ export default function RestaurantRegisterContainer() {
                 )}
 
                 <Button
-                    onClick={step === 5 ? handleSubmit : nextStep}
+                    onClick={currentStep === 5 ? handleSubmit : nextStep}
                     disabled={isLoading}
                     className="px-5"
                 >
-                    {isLoading ? "Processando..." : step === 5 ? "Finalizar" : "Próximo"}
+                    {isLoading ? "Processando..." : currentStep === 5 ? "Finalizar" : "Próximo"}
                 </Button>
             </div>
         );
@@ -369,7 +280,7 @@ export default function RestaurantRegisterContainer() {
 
     // Obter o texto apropriado para o botão de voltar
     const getBackButtonLabel = () => {
-        switch (step) {
+        switch (currentStep) {
             case 2:
                 return isMobile ? "Voltar" : "Voltar para\nResponsável da loja";
             case 3:
@@ -396,7 +307,7 @@ export default function RestaurantRegisterContainer() {
                         <div className="flex">
                             {[1, 2, 3, 4, 5].map((num) => (
                                 <div key={num} className="flex-1">
-                                    <div className={`h-1 ${num <= step ? 'bg-black' : 'bg-gray-200'}`}></div>
+                                    <div className={`h-1 ${num <= currentStep ? 'bg-black' : 'bg-gray-200'}`}></div>
                                 </div>
                             ))}
                         </div>

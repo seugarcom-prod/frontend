@@ -3,25 +3,16 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RestaurantUnit } from "./AddRestaurantUnit";
+import { useRestaurantUnitFormStore } from "@/stores";
 
-interface UnitAddressFormProps {
-    address: RestaurantUnit["address"];
-    updateAddress: (address: Partial<RestaurantUnit["address"]>) => void;
-}
-
-export default function UnitAddressForm({
-    address,
-    updateAddress,
-}: UnitAddressFormProps) {
+export default function UnitAddressForm() {
+    const { unitData, updateUnitData } = useRestaurantUnitFormStore();
     const [isLoading, setIsLoading] = useState(false);
     const [ruaEncontrada, setRuaEncontrada] = useState(false);
 
     const formatCep = (cep: string) => {
-        // Remove tudo que não for número
         cep = cep.replace(/\D/g, "");
 
-        // Formato: XXXXX-XXX
         if (cep.length > 5) {
             cep = `${cep.substring(0, 5)}-${cep.substring(5, 8)}`;
         }
@@ -33,7 +24,7 @@ export default function UnitAddressForm({
         const rawCep = e.target.value.replace(/\D/g, "");
         const formattedCep = formatCep(rawCep);
 
-        updateAddress({ zipCode: formattedCep });
+        updateUnitData({ zipCode: formattedCep });
 
         // Se o campo de CEP for alterado, resetamos o estado de validação
         setRuaEncontrada(false);
@@ -48,7 +39,7 @@ export default function UnitAddressForm({
                 if (!data.erro) {
                     // Verificamos se a API retornou um logradouro (rua)
                     if (data.logradouro) {
-                        updateAddress({
+                        updateUnitData({
                             street: data.logradouro,
                         });
                         setRuaEncontrada(true);
@@ -79,7 +70,7 @@ export default function UnitAddressForm({
                     <Input
                         className="h-10"
                         id="cep"
-                        value={address.zipCode}
+                        value={unitData.zipCode}
                         onChange={handleCepChange}
                         placeholder="Digite seu CEP"
                         maxLength={9}
@@ -95,8 +86,8 @@ export default function UnitAddressForm({
                         <Input
                             className="h-10"
                             id="street"
-                            value={address.street}
-                            onChange={(e) => updateAddress({ street: e.target.value })}
+                            value={unitData.street}
+                            onChange={(e) => updateUnitData({ street: e.target.value })}
                             placeholder="Digite o nome da rua"
                             disabled={isLoading || ruaEncontrada}
                         />
@@ -109,10 +100,10 @@ export default function UnitAddressForm({
                         <Input
                             className="h-10"
                             id="number"
-                            value={address.number}
+                            value={unitData.number}
                             onChange={(e) => {
                                 const value = e.target.value.replace(/\D/g, "");
-                                updateAddress({ number: value });
+                                updateUnitData({ number: value });
                             }}
                             placeholder="Número"
                             disabled={isLoading}
@@ -127,8 +118,8 @@ export default function UnitAddressForm({
                     <Input
                         className="h-10"
                         id="complement"
-                        value={address.complement}
-                        onChange={(e) => updateAddress({ complement: e.target.value })}
+                        value={unitData.complement}
+                        onChange={(e) => updateUnitData({ complement: e.target.value })}
                         placeholder="Ex. Res. Burguer"
                         disabled={isLoading}
                     />

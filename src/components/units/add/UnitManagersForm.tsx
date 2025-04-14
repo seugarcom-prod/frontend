@@ -3,51 +3,61 @@
 import { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { RestaurantUnit } from "./AddRestaurantUnit";
+import { useToast } from "@/hooks/useToast";
+import { useRestaurantUnitFormStore } from "@/stores";
 
 interface Manager {
     id: string;
     name: string;
 }
 
-interface UnitManagersFormProps {
-    selectedManagers: string[];
-    updateUnit: (data: Partial<RestaurantUnit>) => void;
-}
-
-export default function UnitManagersForm({
-    selectedManagers,
-    updateUnit,
-}: UnitManagersFormProps) {
-    const [managers, setManagers] = useState<Manager[]>([]);
+export default function UnitManagersForm() {
+    const { unitData, updateUnitData } = useRestaurantUnitFormStore();
+    const [availableManagers, setAvailableManagers] = useState<Manager[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const toast = useToast();
+
+    const API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL;
 
     useEffect(() => {
-        // Simulando uma chamada de API para buscar gerentes
-        setIsLoading(true);
-        setTimeout(() => {
-            // Dados simulados
-            setManagers([
-                { id: "1", name: "Matheus Queiroz" },
-                { id: "2", name: "Vinícius dos Santos" },
-                { id: "3", name: "João da Silva" },
-                { id: "4", name: "Raíssa Vieira" },
-            ]);
-            setIsLoading(false);
-        }, 500);
+        const fetchManagers = async () => {
+            try {
+                const response = await fetch(`${API_URL}/managers`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                    }
+                });
+
+                if (!response.ok) throw new Error('Falha ao carregar gerentes');
+
+                const data = await response.json();
+                setAvailableManagers(data);
+            } catch (error) {
+                toast.toast({
+                    variant: "destructive",
+                    title: "Erro",
+                    description: "Não foi possível carregar a lista de gerentes"
+                });
+            }
+        };
+
+        fetchManagers();
     }, []);
 
     const handleToggleManager = (managerId: string) => {
-        const newSelectedManagers = [...selectedManagers];
-        const index = newSelectedManagers.indexOf(managerId);
+        const newSelectedManagers = [...unitData.managers];
+        const index = newSelectedManagers.findIndex(manager => manager.id === managerId);
 
         if (index === -1) {
-            newSelectedManagers.push(managerId);
+            const managerToAdd = availableManagers.find(manager => manager.id === managerId);
+            if (managerToAdd) {
+                newSelectedManagers.push(managerToAdd);
+            }
         } else {
             newSelectedManagers.splice(index, 1);
         }
 
-        updateUnit({ managers: newSelectedManagers });
+        updateUnitData({ managers: newSelectedManagers });
     };
 
     if (isLoading) {
@@ -64,14 +74,14 @@ export default function UnitManagersForm({
             </div>
 
             <div className="space-y-2">
-                {managers.map((manager) => (
+                {unitData.managers.map((manager) => (
                     <div
-                        key={manager.id}
+                        key={unitData.managers[0].id}
                         className="flex items-center gap-3 border border-border rounded-md p-4"
                     >
                         <Checkbox
                             id={`manager-${manager.id}`}
-                            checked={selectedManagers.includes(manager.id)}
+                            checked={unitData.managers.includes({ ...manager, id: manager.id })}
                             onCheckedChange={() => handleToggleManager(manager.id)}
                         />
                         <Label
@@ -86,3 +96,4 @@ export default function UnitManagersForm({
         </div>
     );
 }
+

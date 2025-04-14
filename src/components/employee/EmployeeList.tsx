@@ -25,14 +25,13 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/useToast';
-
+import { formatFullName } from '@/utils/formatFullname';
+import { formatDate } from '@/utils/formatDate';
 import {
     IEmployee,
     getEmployeesByUnit,
     deleteEmployee,
-    formatFullName,
     formatRole,
-    formatDate
 } from '@/services/employee/index';
 
 interface EmployeeListProps {

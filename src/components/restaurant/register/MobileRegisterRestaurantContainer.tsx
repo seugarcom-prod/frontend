@@ -13,6 +13,7 @@ import RestaurantInfoForm from './RestaurantInfoForm';
 import RestaurantAddressForm from './RestaurantAddressForm';
 import RestaurantScheduleForm from './RestaurantScheduleForm';
 import AdminCredentialsForm from '@/components/users/admin/AdminCredentialsForm';
+import { useRestaurantStore } from '@/stores';
 
 export default function MobileRestaurantRegisterContainer() {
     const router = useRouter();
@@ -148,6 +149,7 @@ export default function MobileRestaurantRegisterContainer() {
     };
 
     // Função para submeter o formulário completo
+    // Modificação no handleSubmit do MobileRestaurantRegisterContainer.tsx
     const handleSubmit = async () => {
         if (!validateCurrentStep()) return;
 
@@ -164,7 +166,7 @@ export default function MobileRestaurantRegisterContainer() {
                 (formData.cnpjPart2 || '') +
                 (formData.cnpjPart3 || '');
 
-            // Transformar os horários para o formato esperado pelo backend (igual desktop)
+            // Transformar os horários para o formato esperado pelo backend
             const businessHours = formData.schedules.map(schedule => {
                 const dayMappings: Record<string, string> = {
                     dom: 'Domingo',
@@ -185,18 +187,18 @@ export default function MobileRestaurantRegisterContainer() {
                 };
             });
 
-            // Preparar payload para a API (similar à versão desktop)
+            // Preparar payload para a API
             const payload = {
                 firstName,
                 lastName,
                 cpf: formData.adminCpf.replace(/\D/g, ''),
                 email: formData.email,
                 password: formData.password,
-                restaurantName: formData.name,
+                name: formData.name,
                 socialName: formData.socialName || formData.name,
                 cnpj: cnpj.replace(/\D/g, ''),
                 specialty: formData.specialty,
-                restaurantPhone: formData.phone,
+                phone: formData.phone,
                 address: {
                     zipCode: formData.zipCode.replace(/\D/g, ''),
                     street: formData.street,
@@ -207,11 +209,22 @@ export default function MobileRestaurantRegisterContainer() {
             };
 
             // Chamar a função de autenticação para registrar
-            await registerAdminWithRestaurant(payload);
+            const result = await registerAdminWithRestaurant(payload);
 
-            // Redirecionar para dashboard após sucesso
-            router.push('/admin');
+            if (result.success) {
+                // Obter o ID do restaurante do store
+                const restaurantId = useRestaurantStore.getState().restaurantId;
 
+                // Redirecionar para dashboard após sucesso
+                if (restaurantId) {
+                    router.push(`/restaurant/${restaurantId}/dashboard`);
+                } else {
+                    // Fallback para a resposta da API se o store não tiver o ID ainda
+                    router.push(`/restaurant/${result.restaurant?._id}/dashboard`);
+                }
+            } else {
+                setError(result.message);
+            }
         } catch (error: any) {
             console.error('Erro ao registrar:', error);
             setError(error.message || 'Ocorreu um erro ao criar sua conta. Tente novamente mais tarde.');
@@ -225,42 +238,27 @@ export default function MobileRestaurantRegisterContainer() {
         switch (step) {
             case 1:
                 return (
-                    <AdminInfoForm
-                        formData={formData}
-                        updateFormData={updateFormData}
-                    />
+                    <AdminInfoForm />
                 );
 
             case 2:
                 return (
-                    <RestaurantInfoForm
-                        formData={formData}
-                        updateFormData={updateFormData}
-                    />
+                    <RestaurantInfoForm />
                 );
 
             case 3:
                 return (
-                    <RestaurantAddressForm
-                        formData={formData}
-                        updateFormData={updateFormData}
-                    />
+                    <RestaurantAddressForm />
                 );
 
             case 4:
                 return (
-                    <RestaurantScheduleForm
-                        formData={formData}
-                        updateFormData={updateFormData}
-                    />
+                    <RestaurantScheduleForm />
                 );
 
             case 5:
                 return (
-                    <AdminCredentialsForm
-                        formData={formData}
-                        updateFormData={updateFormData}
-                    />
+                    <AdminCredentialsForm />
                 );
 
             default:
