@@ -4,21 +4,14 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { useRestaurantFormStore } from "@/stores";
 
-interface AdminCredentialsFormProps {
-    formData: {
-        email: string;
-        password: string;
-        confirmPassword: string;
-    };
-    updateFormData: (data: Partial<{
-        email: string;
-        password: string;
-        confirmPassword: string;
-    }>) => void;
-}
+export default function AdminCredentialsForm() {
+    const { formData, updateFormData } = useRestaurantFormStore();
 
-export default function AdminCredentialsForm({ formData, updateFormData }: AdminCredentialsFormProps) {
+    const [emailError, setEmailError] = useState('');
+    const [passwordError, setPasswordError] = useState('');
+    const [confirmPasswordError, setConfirmPasswordError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -33,16 +26,6 @@ export default function AdminCredentialsForm({ formData, updateFormData }: Admin
         return password.length >= 6;
     };
 
-    // Validação para confirmar senha
-    const validateConfirmPassword = () => {
-        return formData.password === formData.confirmPassword;
-    };
-
-    // Estados para exibir mensagens de erro
-    const [emailError, setEmailError] = useState('');
-    const [passwordError, setPasswordError] = useState('');
-    const [confirmPasswordError, setConfirmPasswordError] = useState('');
-
     // Handlers de validação
     const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const email = e.target.value;
@@ -55,7 +38,10 @@ export default function AdminCredentialsForm({ formData, updateFormData }: Admin
         }
     };
 
-    const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>,
+        formData: { password: string; confirmPassword: string },
+        setPasswordError: React.Dispatch<React.SetStateAction<string>>,
+        updateFormData: ({ password }: { password: string }) => void) => {
         const password = e.target.value;
         updateFormData({ password });
 
@@ -73,7 +59,15 @@ export default function AdminCredentialsForm({ formData, updateFormData }: Admin
         }
     };
 
-    const handleConfirmPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleConfirmPasswordChange = (
+        e: React.ChangeEvent<HTMLInputElement>,
+        formData: {
+            password: string;
+            confirmPassword: string
+        },
+        setConfirmPasswordError: React.Dispatch<React.SetStateAction<string>>,
+        updateFormData: ({ confirmPassword }: { confirmPassword: string }
+        ) => void) => {
         const confirmPassword = e.target.value;
         updateFormData({ confirmPassword });
 
@@ -118,7 +112,7 @@ export default function AdminCredentialsForm({ formData, updateFormData }: Admin
                             id="password"
                             type={showPassword ? "text" : "password"}
                             value={formData.password}
-                            onChange={handlePasswordChange}
+                            onChange={e => handlePasswordChange(e, formData, setPasswordError, updateFormData)}
                             placeholder="Digite sua senha de acesso"
                             className={`w-full pr-10 ${passwordError ? 'border-red-500' : ''}`}
                         />
@@ -146,7 +140,7 @@ export default function AdminCredentialsForm({ formData, updateFormData }: Admin
                             id="confirmPassword"
                             type={showConfirmPassword ? "text" : "password"}
                             value={formData.confirmPassword}
-                            onChange={handleConfirmPasswordChange}
+                            onChange={(e) => handleConfirmPasswordChange(e, formData, setConfirmPasswordError, updateFormData)}
                             placeholder="Repita sua senha de acesso"
                             className={`w-full pr-10 ${confirmPasswordError ? 'border-red-500' : ''}`}
                         />

@@ -6,18 +6,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UserLogin } from '@/components/login/UserLogin';
 import { GuestLogin } from '@/components/login/GuestLogin';
 import { useAuth } from '@/hooks/useAuth';
-import Image from 'next/image';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
+import { useRestaurantStore } from '@/stores';
 
 export function LoginPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { authenticateAsGuest, isAuthenticated, isGuest, isRole, loading } = useAuth();
+    const { authenticateAsGuest, isAuthenticated, isRole, loading } = useAuth();
     const [restaurantInfo, setRestaurantInfo] = useState<{ name: string } | null>(null);
 
     // Obter parâmetros da URL
-    const restaurantId = searchParams.get('restaurantId');
+    const restaurantId = useRestaurantStore.getState().restaurantId;
     const tableId = searchParams.get('tableId');
     const redirect = searchParams.get('redirect') || '';
 
@@ -25,13 +25,12 @@ export function LoginPage() {
     useEffect(() => {
         if (!loading && isAuthenticated) {
             if (isRole('ADMIN')) {
-                console.log("Role: ", isRole('ADMIN'))
-                router.push('/admin');
+                router.push(`/restaurant/${restaurantId}/dashboard`);
             } else if (isRole('MANAGER')) {
-                router.push('/admin');
+                router.push(`/restaurant/${restaurantId}/dashboard`);
             } else if (isRole('ATTENDANT')) {
                 router.push('/attendant/orders');
-            } else if (isRole('CLIENT') || isGuest) {
+            } else if (isRole('CLIENT') || 'GUEST') {
                 // Para cliente ou convidado, redirecionar conforme params
                 if (redirect) {
                     router.push(redirect);
@@ -42,7 +41,7 @@ export function LoginPage() {
                 }
             }
         }
-    }, [isAuthenticated, isRole, isGuest, loading, router, redirect, restaurantId]);
+    }, [isAuthenticated, isRole, loading, router, redirect, restaurantId]);
 
     // Buscar informações do restaurante
     useEffect(() => {
@@ -61,10 +60,10 @@ export function LoginPage() {
         }
     }, [restaurantId, tableId]);
 
-    // Função para continuar como convidado
-    const continueAsGuest = () => {
+    // Função para continuar sem login
+    const continueWithoutLogin = () => {
         if (restaurantId && tableId && restaurantInfo) {
-            // Usar função do contexto de autenticação
+            // Usar função do contexto de autenticação para autenticar como convidado anônimo
             authenticateAsGuest(
                 tableId,
                 restaurantId,
@@ -77,6 +76,9 @@ export function LoginPage() {
             } else {
                 router.push(`/restaurant/${restaurantId}/menu`);
             }
+        } else if (restaurantId) {
+            // Mesmo sem tableId, permitir acesso ao menu
+            router.push(`/restaurant/${restaurantId}/menu`);
         }
     };
 
@@ -139,17 +141,15 @@ export function LoginPage() {
                         </TabsContent>
                     </Tabs>
 
-                    {/* Botão para continuar sem login se veio do QR code */}
-                    {restaurantId && tableId && (
-                        <div className="mt-6">
-                            <button
-                                onClick={continueAsGuest}
-                                className="w-full py-2 text-gray-600 text-sm underline hover:text-gray-900"
-                            >
-                                Continuar sem login
-                            </button>
-                        </div>
-                    )}
+                    {/* Botão para continuar sem login */}
+                    <div className="mt-6">
+                        <button
+                            onClick={continueWithoutLogin}
+                            className="w-full py-2 text-gray-600 text-sm underline hover:text-gray-900"
+                        >
+                            Continuar sem login
+                        </button>
+                    </div>
 
                     <div className="mt-8 text-center text-sm text-gray-500">
                         <p>

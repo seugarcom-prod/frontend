@@ -1,10 +1,8 @@
+"use client";
+import { useEffect, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Ban, Flame, SquareX } from "lucide-react";
-
-// Define o tipo para status da unidade
+import { ArrowRight, Flame } from "lucide-react";
 export type UnitStatus = "active" | "outOfHours" | "inactive";
-
-// Interface do componente
 export interface UnitCardProps {
   id: string;
   name: string;
@@ -13,9 +11,9 @@ export interface UnitCardProps {
   status: UnitStatus;
   isTopSeller?: boolean;
   isSelected: boolean;
-  onToggleSelection: (id: string) => void;
+  selectAll: boolean;
+  onToggleSelection: (checked: boolean) => void;
 }
-
 export default function UnitCard({
   id,
   name,
@@ -24,69 +22,58 @@ export default function UnitCard({
   status,
   isTopSeller = false,
   isSelected,
+  selectAll,
   onToggleSelection
 }: UnitCardProps) {
+  // Initialize state with the isSelected prop
+  const [selected, setSelected] = useState(isSelected);
 
-  // Renderiza o indicador de status apropriado baseado no tipo de status
-  const renderStatusIndicator = () => {
-    switch (status) {
-      case "active":
-        if (isTopSeller) {
-          return (
-            <div className="flex items-center gap-2 text-amber-500 text-sm">
-              <Flame />
-              <span>Número #1 em vendas no mês</span>
-            </div>
-          );
-        }
-        return null;
-
-      case "outOfHours":
-        return (
-          <div className="flex items-center gap-2 text-red-500 text-sm my-1">
-            <SquareX />
-            <span>Unidade fora do horário de funcionamento</span>
-          </div>
-        );
-
-      case "inactive":
-        return (
-          <div className="flex items-center gap-2 text-gray-400 text-sm my-1">
-            <Ban size={20} />
-            <span>Unidade desativada</span>
-          </div>
-        );
-
-      default:
-        return null;
+  // Effect for handling selectAll changes
+  useEffect(() => {
+    if (selectAll && !selected) {
+      setSelected(true);
+      onToggleSelection(true);
     }
+  }, [selectAll]);
+
+  // Effect for handling isSelected prop changes
+  useEffect(() => {
+    setSelected(isSelected);
+  }, [isSelected]);
+
+  const handleSelectionChange = () => {
+    const newSelected = !selected;
+    setSelected(newSelected);
+    onToggleSelection(newSelected);
   };
 
   return (
-    <div className="border border-border rounded-lg shadow-md overflow-hidden bg-background">
-      <div className="flex">
-        <div className="p-4 flex-1">
-          {renderStatusIndicator()}
-
-          <div className="flex flex-row justify-between border-b border-border">
-            <h3 className="font-medium mt-1 text-primary">{name}</h3>
-            <div className="p-4 flex items-center">
-              <Checkbox
-                checked={isSelected}
-                onCheckedChange={() => onToggleSelection(id)}
-                className="h-5 w-5 rounded-none data-[state=checked]:bg-primary data-[state=checked]:border-border border-border"
-              />
+    <div className="border border-border rounded-lg shadow-sm bg-background hover:bg-accent/50 transition-colors">
+      <div className="p-4">
+        <div className="flex flex-col">
+          {isTopSeller && (
+            <div className="flex items-center gap-1.5 text-amber-500 text-sm mb-2">
+              <Flame size={16} />
+              <span>Número #1 em vendas no mês</span>
             </div>
+          )}
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-medium text-primary">{name}</h3>
+            <Checkbox checked={selected} onCheckedChange={handleSelectionChange} />
           </div>
-
-          <div className="grid grid-cols-2 gap-4 mt-2 pt-2">
-            <div className="gap-2">
-              <p className="text-gray-500 text-sm">Gerente responsável</p>
-              <p className="text-primary text-sm">{manager}</p>
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">CNPJ</p>
-              <p className="text-primary text-sm">{cnpj}</p>
+          <div className="mt-6 py-2">
+            <div className="border border-b border-gray-200" />
+          </div>
+          <div className="mt-2">
+            <div className="flex gap-x-32">
+              <div>
+                <p className="text-sm text-muted-foreground">Gerente responsável</p>
+                <p className="text-sm text-primary">{manager}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">CNPJ</p>
+                <p className="text-sm text-primary">{cnpj}</p>
+              </div>
             </div>
           </div>
         </div>

@@ -1,15 +1,18 @@
 "use client"
 
 import Link from "next/link"
-import { useParams, usePathname } from "next/navigation"
-import { useState } from "react"
+import { usePathname } from "next/navigation"
+import { signOut } from 'next-auth/react'
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Menu, BadgePercent, BarChart, Store, Sun, Cog, Home, LogOut, UserCog2, Moon } from "lucide-react"
+import { Menu, BadgePercent, BarChart, Store, Sun, Cog, Home, LogOut, UserCog2, Moon, SquareMenu } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useSidebar } from "@/components/ui/sidebar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu"
+import { useRestaurantId } from "@/hooks/useRestaurantId"
+import { useRestaurantUnitId } from "@/hooks/useRestaurantUnitId"
+import { useAuthStore } from "@/stores"
 
 interface NavItem {
     title: string
@@ -18,42 +21,53 @@ interface NavItem {
     color: string
 }
 
-
 interface SidebarProps {
     className?: string
 }
 
 export function Sidebar({ className }: SidebarProps) {
-    const params = useParams();
-    const unitId = params.unitId as string;
+    const { restaurantId } = useRestaurantId();
+    const unitId = useRestaurantUnitId();
     const pathname = usePathname()
     const { setTheme } = useTheme()
     const { isOpen } = useSidebar();
 
-    // Sidebar está escondida quando isOpen é false
     if (!isOpen) {
         return null;
     }
 
+    const handleLogout = async (redirectUrl = '/login') => {
+        useAuthStore.getState().setToken('');
+        await signOut({
+            redirect: true,
+            callbackUrl: redirectUrl
+        });
+    };
 
     const items: NavItem[] = [
         {
             title: "Início",
-            href: "/admin",
+            href: `/restaurant/${restaurantId}/dashboard`,
             icon: <Home size={20} />,
             color: "#ef4444"
         },
         {
             title: "Funcionários",
-            href: `/admin/units/${unitId ? unitId : 1}/employees`,
+            href: `/restaurant/${restaurantId}/units/${unitId}/employees`,
             icon: <UserCog2 size={20} />,
             color: "#84cc16"
         },
         {
             title: "Unidades",
-            href: "/restaurant/unit",
+            href: `/restaurant/${restaurantId}/units`,
             icon: <Store size={20} />,
             color: "#d946ef"
+        },
+        {
+            title: "Menu",
+            href: `/restaurant/${restaurantId}/products`,
+            icon: <SquareMenu size={20} />,
+            color: "#f3de1f"
         },
         {
             title: "Promoções",
@@ -97,11 +111,11 @@ export function Sidebar({ className }: SidebarProps) {
                 <div className="mt-auto bg-background border-t border-border">
 
                     <div className="flex flex-row items-center justify-between">
-                        <div>
-                            <Link href="/login" className="flex items-center gap-4 px-5 py-4 text-primary cursor-pointer">
+                        <div className="flex flex-row items-center">
+                            <Button onClick={() => handleLogout()} className="flex items-center gap-4 px-6 text-secondary cursor-pointer bg-transparent border-none shadow-none">
                                 <LogOut size={20} className="text-gray-500" />
-                                <span>Desconectar</span>
-                            </Link>
+                                <span className="cursor-pointer text-primary">Desconectar</span>
+                            </Button>
                         </div>
                         <div className="flex justify-between items-end gap-2 px-5 py-4">
                             <DropdownMenu>

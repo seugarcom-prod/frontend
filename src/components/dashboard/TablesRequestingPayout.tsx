@@ -51,7 +51,7 @@ export default function TablesRequestingCheckout({ restaurantUnitId }: TablesReq
             setRefreshing(true);
 
             // 1. Buscar mesas solicitando pagamento
-            const response = await fetch(`/api/restaurant/unit/${restaurantUnitId}/tables-checkout`);
+            const response = await fetch(`/restaurant/unit/${restaurantUnitId}/tables-checkout`);
 
             if (!response.ok) {
                 throw new Error('Erro ao buscar mesas');
@@ -64,7 +64,7 @@ export default function TablesRequestingCheckout({ restaurantUnitId }: TablesReq
 
             for (const tableNumber of data.tables) {
                 const tableOrdersResponse = await fetch(
-                    `/api/restaurant/unit/${restaurantUnitId}/table/${tableNumber}/orders`
+                    `/restaurant/unit/${restaurantUnitId}/table/${tableNumber}/orders`
                 );
 
                 if (tableOrdersResponse.ok) {
@@ -110,7 +110,7 @@ export default function TablesRequestingCheckout({ restaurantUnitId }: TablesReq
         setProcessingPayment(true);
 
         try {
-            const response = await fetch('/api/order/process-payment', {
+            const response = await fetch('/order/process-payment', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

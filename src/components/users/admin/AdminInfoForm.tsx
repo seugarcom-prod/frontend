@@ -4,24 +4,16 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatCpf } from "@/utils";
+import { useRestaurantFormStore } from "@/stores";
 
-interface AdminInfoFormProps {
-    formData: {
-        adminName: string;
-        adminCpf: string;
-    };
-    updateFormData: (data: Partial<{
-        adminName: string;
-        adminCpf: string;
-    }>) => void;
-}
 
-export default function AdminInfoForm({ formData, updateFormData }: AdminInfoFormProps) {
+export default function AdminInfoForm() {
+    const { formData, updateFormData } = useRestaurantFormStore();
+
     const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const formattedCpf = formatCpf(e.target.value);
         updateFormData({ adminCpf: formattedCpf });
     };
-
     return (
         <div className="space-y-6">
             <div>

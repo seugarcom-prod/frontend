@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuthStore, useRestaurantStore } from '@/stores';
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { X, ChevronLeft, ChevronRight, Check } from "lucide-react";
@@ -11,6 +12,8 @@ import UnitScheduleForm from "./UnitScheduleForm";
 import UnitManagersForm from "./UnitManagersForm";
 import UnitSuccessScreen from "./UnitSuccessScreen";
 import { useToast } from "@/hooks/useToast";
+import { useRestaurantId } from "@/hooks/useRestaurantId";
+import useFetchRestaurantInfo from "@/hooks/fetchRestaurantInfo";
 
 export interface Schedule {
     day: string;
@@ -55,13 +58,13 @@ const initialUnit: RestaurantUnit = {
 };
 
 export default function AddRestaurantUnit() {
+    useFetchRestaurantInfo();
     const router = useRouter();
     const { toast } = useToast();
     const [step, setStep] = useState(1);
     const [unit, setUnit] = useState<RestaurantUnit>(initialUnit);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [restaurant, setRestaurant] = useState<{ id: string, cnpj: string } | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
 
     const API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL;
 
@@ -84,53 +87,58 @@ export default function AddRestaurantUnit() {
     const handleSubmit = async () => {
         setIsSubmitting(true);
 
-        if (!restaurant?.id) {
-            toast({
-                variant: "destructive",
-                title: "Erro",
-                description: "ID do restaurante não encontrado."
-            });
-            setIsSubmitting(false);
-            return;
-        }
-
         try {
-            // Formatar os dados para corresponder à API
+            const restaurantId = useRestaurantStore.getState().restaurantId; // Obtém o ID do restaurante do Zustand
+            if (!restaurantId) {
+                throw new Error("ID do restaurante não encontrado");
+            }
+
+            const token = useAuthStore.getState().token; // Obtém o token do authStore
+            if (!token) {
+                throw new Error("Token não encontrado");
+            }
+
+            // Formatar os dados conforme esperado pelo backend
             const payload = {
-                cnpj: unit.cnpj,
+                name: unit.name,
                 socialName: unit.socialName,
-                manager: unit.managers[0], // Pegando o primeiro gerente como principal
-                contact: unit.phone,
+                cnpj: unit.cnpj,
+                phone: unit.phone,
+                specialty: unit.specialty,
                 address: {
-                    zipCode: unit.address.zipCode,
                     street: unit.address.street,
-                    number: parseInt(unit.address.number),
+                    number: unit.address.number,
                     complement: unit.address.complement,
+                    zipCode: unit.address.zipCode,
                 },
+                businessHours: unit.schedules.map(schedule => ({
+                    day: schedule.day,
+                    opens: schedule.opens,
+                    closes: schedule.closes
+                })),
+                status: 'active'
             };
 
-            const response = await fetch(`/restaurant/${restaurant.id}/unit`, {
-                method: "POST",
+            const response = await fetch(`${API_URL}/restaurant/${restaurantId}/units/register`, {
+                method: 'POST',
                 headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${localStorage.getItem('auth_token')}`
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` // Usa o token do authStore
                 },
-                body: JSON.stringify(payload),
+                body: JSON.stringify(payload)
             });
 
-            if (response.ok) {
-                // Avançar para a tela de sucesso
-                setStep(5);
-            } else {
-                const errorData = await response.json();
-                throw new Error(errorData.message || "Erro ao criar unidade");
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message);
             }
+
+            setStep(5); // Avança para tela de sucesso
         } catch (error: any) {
-            console.error("Error creating restaurant unit:", error);
             toast({
                 variant: "destructive",
-                title: "Erro",
-                description: error.message || "Ocorreu um erro ao criar a unidade."
+                title: "Erro ao criar unidade",
+                description: error.message
             });
         } finally {
             setIsSubmitting(false);
@@ -151,104 +159,23 @@ export default function AddRestaurantUnit() {
     const renderStepContent = () => {
         switch (step) {
             case 1:
-                return <UnitInfoForm
-                    unit={unit}
-                    updateUnit={updateUnitInfo}
-                    matrixCNPJ={restaurant?.cnpj}
-                />;
+                return <UnitInfoForm />;
             case 2:
-                return <UnitAddressForm address={unit.address} updateAddress={updateUnitAddress} />;
+                return <UnitAddressForm />;
             case 3:
                 return (
-                    <UnitScheduleForm
-                        useMatrixSchedule={unit.useMatrixSchedule}
-                        schedules={unit.schedules}
-                        updateUnit={updateUnitInfo}
-                    />
+                    <UnitScheduleForm />
                 );
             case 4:
                 return (
-                    <UnitManagersForm
-                        selectedManagers={unit.managers}
-                        updateUnit={updateUnitInfo}
-                    />
+                    <UnitManagersForm />
                 );
             case 5:
                 return <UnitSuccessScreen />;
             default:
-                return <UnitInfoForm unit={unit} updateUnit={updateUnitInfo} />;
+                return <UnitInfoForm />;
         }
     };
-
-    if (isLoading) {
-        return (
-            <div className="h-screen flex items-center justify-center">
-                <div className="text-center">
-                    <div className="animate-spin w-10 h-10 border-4 border-primary rounded-full border-t-transparent mb-4 mx-auto"></div>
-                    <p>Carregando informações...</p>
-                </div>
-            </div>
-        );
-    }
-
-    useEffect(() => {
-        const fetchRestaurantInfo = async () => {
-            try {
-                setIsLoading(true);
-
-                // Verificar token - este é apenas um exemplo de como verificar a autenticação
-                const token = localStorage.getItem('auth_token');
-                if (!token) {
-                    toast({
-                        variant: "destructive",
-                        title: "Acesso negado",
-                        description: "Você precisa estar logado como administrador para criar unidades."
-                    });
-                    router.push('/login');
-                    return;
-                }
-
-                // Buscar informações do restaurante do usuário logado
-                const response = await fetch(`${API_URL}/validate`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                const data = await response.json();
-
-                // Verificar se o usuário é um admin de restaurante e tem um restaurante associado
-                if (data.isValid && data.user.role === 'ADMIN' && data.restaurant) {
-                    // Buscar detalhes adicionais do restaurante se necessário
-                    const restaurantDetails = await fetch(`${API_URL}/restaurant/${data.restaurant._id}`);
-                    const restaurantData = await restaurantDetails.json();
-
-                    setRestaurant({
-                        id: data.restaurant._id,
-                        cnpj: restaurantData.cnpj || ''
-                    });
-                } else {
-                    toast({
-                        variant: "destructive",
-                        title: "Acesso negado",
-                        description: "Você precisa ser administrador de um restaurante para criar unidades."
-                    });
-                    router.push('/dashboard');
-                }
-            } catch (error) {
-                console.error("Erro ao buscar informações do restaurante:", error);
-                toast({
-                    variant: "destructive",
-                    title: "Erro",
-                    description: "Ocorreu um erro ao verificar suas permissões."
-                });
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchRestaurantInfo();
-    }, [router, toast]);
 
     return (
         <div className="h-screen">
@@ -302,7 +229,7 @@ export default function AddRestaurantUnit() {
                                 <Button
                                     onClick={step < 4 ? handleNext : handleSubmit}
                                     disabled={isSubmitting}
-                                    className="bg-black hover:bg-gray-800 text-primary px-4 py-2 rounded-md"
+                                    className="bg-secondary hover:bg-gray-800 text-primary px-4 py-2 rounded-md"
                                 >
                                     {step < 4 ? (
                                         <>
@@ -345,3 +272,4 @@ export default function AddRestaurantUnit() {
         </div>
     );
 }
+

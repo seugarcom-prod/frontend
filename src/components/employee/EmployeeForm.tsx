@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,13 +18,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/useToast';
 import {
-    IEmployee,
-    ICreateEmployeeData,
-    IUpdateEmployeeData,
-    getEmployeeById,
-    createEmployee,
-    updateEmployee,
-    formatRole
+    getEmployeeById
 } from '@/services/employee/index';
 
 interface EmployeeFormProps {
@@ -35,7 +30,7 @@ interface EmployeeFormProps {
 export default function EmployeeForm({ unitId, employeeId, isEditMode }: EmployeeFormProps) {
     const router = useRouter();
     const { toast } = useToast();
-
+    const { data: session } = useSession();
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -91,6 +86,7 @@ export default function EmployeeForm({ unitId, employeeId, isEditMode }: Employe
     // Atualizar dados do formulário
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
+        console.log(`Mudança no campo ${name}: ${value}`); // Adicione este log
         setFormData(prev => ({ ...prev, [name]: value }));
 
         // Limpar erro de validação quando o usuário digita
@@ -105,6 +101,7 @@ export default function EmployeeForm({ unitId, employeeId, isEditMode }: Employe
 
     // Atualizar função selecionada
     const handleRoleChange = (value: string) => {
+        console.log("Role: ", value)
         setFormData(prev => ({ ...prev, role: value }));
 
         // Limpar erro de validação
@@ -140,7 +137,7 @@ export default function EmployeeForm({ unitId, employeeId, isEditMode }: Employe
         }
 
         // Validação de senha apenas para criação ou se estiver alterando a senha
-        if (!isEditMode || (isEditMode && formData.password)) {
+        if (formData.role === 'ADMIN' || formData.role === 'MANAGER') {
             if (!isEditMode && !formData.password) {
                 errors.password = 'Senha é obrigatória';
             } else if (formData.password && formData.password.length < 6) {
@@ -153,12 +150,15 @@ export default function EmployeeForm({ unitId, employeeId, isEditMode }: Employe
         }
 
         setValidationErrors(errors);
-        return Object.keys(errors).length === 0;
+        const isValid = Object.keys(errors).length === 0;
+        console.log('Validação do formulário:', isValid);
+        return isValid;
     };
 
     // Enviar formulário
     const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+        e.preventDefault(); // Fundamental para impedir o comportamento padrão do form
+        console.log("Formulário submetido", formData);
 
         if (!validateForm()) return;
 
@@ -166,50 +166,55 @@ export default function EmployeeForm({ unitId, employeeId, isEditMode }: Employe
         setError(null);
 
         try {
+            // Obter token da sessão
+            const token = session?.token || ''; // Ajuste conforme sua implementação do NextAuth
+
             if (isEditMode && employeeId) {
-                // Preparar dados para atualização
-                const updateData: IUpdateEmployeeData = {
-                    firstName: formData.firstName,
-                    lastName: formData.lastName,
-                    email: formData.email,
-                    phone: formData.phone || undefined,
-                    role: formData.role as any
-                };
-
-                // Incluir senha apenas se foi preenchida
-                if (formData.password) {
-                    updateData.password = formData.password;
-                }
-
-                // Atualizar funcionário
-                await updateEmployee(employeeId, updateData);
-
-                toast({
-                    title: "Sucesso",
-                    description: "Funcionário atualizado com sucesso."
-                });
+                // Código de atualização...
             } else {
                 // Criar novo funcionário
-                const createData: ICreateEmployeeData = {
+                const createData = {
                     firstName: formData.firstName,
                     lastName: formData.lastName,
                     email: formData.email,
                     phone: formData.phone || undefined,
-                    password: formData.password,
-                    role: formData.role as any,
-                    unitId
+                    role: formData.role as "ADMIN" | "MANAGER" | "ATTENDANT",
+                    unitId: unitId,
+                    password: formData.role === 'ADMIN' || formData.role === 'MANAGER'
+                        ? formData.password
+                        : ""
                 };
 
-                await createEmployee(createData);
+                console.log('Enviando dados:', createData);
+
+                // Fazer requisição para a API
+                const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/employee/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` // Use o token da sessão
+                    },
+                    body: JSON.stringify(createData)
+                });
+
+                console.log('Status da resposta:', response.status); // Debugging
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || "Erro ao criar funcionário");
+                }
+
+                const data = await response.json();
+                console.log('Resposta:', data); // Debugging
 
                 toast({
                     title: "Sucesso",
                     description: "Funcionário criado com sucesso."
                 });
-            }
 
-            // Redirecionar para a lista após salvar
-            router.push(`/admin/units/${unitId}/employees`);
+                // Redirecionar para a lista após salvar
+                router.push(`/admin/units/${unitId}/employees`);
+            }
         } catch (error: any) {
             console.error('Erro ao salvar funcionário:', error);
             setError(error.message || 'Ocorreu um erro ao salvar o funcionário.');
@@ -371,50 +376,52 @@ export default function EmployeeForm({ unitId, employeeId, isEditMode }: Employe
                     </div>
                 </div>
 
-                {/* Senha e Confirmação de Senha */}
-                <div className="border-t pt-6 mt-6">
-                    <h3 className="text-lg font-medium mb-4">
-                        {isEditMode ? 'Alterar Senha (opcional)' : 'Definir Senha'}
-                    </h3>
+                {/* Senha e Confirmação de Senha - Apenas para ADMIN e MANAGER */}
+                {(formData.role === 'ADMIN' || formData.role === 'MANAGER') && (
+                    <div className="border-t pt-6 mt-6">
+                        <h3 className="text-lg font-medium mb-4">
+                            {isEditMode ? 'Alterar Senha (opcional)' : 'Definir Senha'}
+                        </h3>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <Label htmlFor="password">
-                                Senha {!isEditMode && <span className="text-red-500">*</span>}
-                            </Label>
-                            <Input
-                                id="password"
-                                name="password"
-                                type="password"
-                                value={formData.password}
-                                onChange={handleInputChange}
-                                placeholder={isEditMode ? "Deixe em branco para manter a atual" : "Senha"}
-                                className={validationErrors.password ? "border-red-500" : ""}
-                            />
-                            {validationErrors.password && (
-                                <p className="text-red-500 text-sm">{validationErrors.password}</p>
-                            )}
-                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <Label htmlFor="password">
+                                    Senha {!isEditMode && <span className="text-red-500">*</span>}
+                                </Label>
+                                <Input
+                                    id="password"
+                                    name="password"
+                                    type="password"
+                                    value={formData.password}
+                                    onChange={handleInputChange}
+                                    placeholder={isEditMode ? "Deixe em branco para manter a atual" : "Senha"}
+                                    className={validationErrors.password ? "border-red-500" : ""}
+                                />
+                                {validationErrors.password && (
+                                    <p className="text-red-500 text-sm">{validationErrors.password}</p>
+                                )}
+                            </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="confirmPassword">
-                                Confirmar Senha {!isEditMode && <span className="text-red-500">*</span>}
-                            </Label>
-                            <Input
-                                id="confirmPassword"
-                                name="confirmPassword"
-                                type="password"
-                                value={formData.confirmPassword}
-                                onChange={handleInputChange}
-                                placeholder="Confirmar senha"
-                                className={validationErrors.confirmPassword ? "border-red-500" : ""}
-                            />
-                            {validationErrors.confirmPassword && (
-                                <p className="text-red-500 text-sm">{validationErrors.confirmPassword}</p>
-                            )}
+                            <div className="space-y-2">
+                                <Label htmlFor="confirmPassword">
+                                    Confirmar Senha {!isEditMode && <span className="text-red-500">*</span>}
+                                </Label>
+                                <Input
+                                    id="confirmPassword"
+                                    name="confirmPassword"
+                                    type="password"
+                                    value={formData.confirmPassword}
+                                    onChange={handleInputChange}
+                                    placeholder="Confirmar senha"
+                                    className={validationErrors.confirmPassword ? "border-red-500" : ""}
+                                />
+                                {validationErrors.confirmPassword && (
+                                    <p className="text-red-500 text-sm">{validationErrors.confirmPassword}</p>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
 
                 {/* Botões */}
                 <div className="flex justify-end gap-4 pt-4">

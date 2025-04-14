@@ -2,7 +2,6 @@
 
 import React, { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Skeleton } from '@/components/ui/skeleton';
 
 export default function QRCodeHandler() {
     const params = useParams();
