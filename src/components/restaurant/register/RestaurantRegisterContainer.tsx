@@ -4,10 +4,10 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/useMobile';
+import { useAuthCheck } from '@/hooks/sessionManager';
 import { Button } from '@/components/ui/button';
-import { useRestaurantFormStore, useRestaurantStore } from '@/stores';
+import { useAuthStore, useRestaurantFormStore, useRestaurantStore } from '@/stores';
 
 // Componentes de formulário
 import AdminInfoForm from '@/components/users/admin/AdminInfoForm';
@@ -18,7 +18,7 @@ import AdminCredentialsForm from '@/components/users/admin/AdminCredentialsForm'
 
 export default function RestaurantRegisterContainer() {
     const router = useRouter();
-    const { registerAdminWithRestaurant } = useAuth();
+    const { registerAdminWithRestaurant } = useAuthCheck();
     const isMobile = useIsMobile();
 
     // Usar Zustand para gerenciar o estado do formulário
@@ -205,6 +205,11 @@ export default function RestaurantRegisterContainer() {
 
                 // Obter o ID do restaurante do useRestaurantStore
                 const restaurantId = useRestaurantStore.getState().restaurantId;
+
+                if (result.token) {
+                    useAuthStore.getState().setToken(result.token);
+                    useAuthStore.getState().setUserRole('ADMIN');
+                }
 
                 // Redirecionar para o dashboard com o ID do restaurante
                 if (restaurantId) {

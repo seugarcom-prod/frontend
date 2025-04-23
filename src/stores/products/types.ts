@@ -1,5 +1,4 @@
-// types/product.ts
-
+// types.ts (ajustado)
 export interface Product {
     _id: string;
     name: string;
@@ -10,6 +9,13 @@ export interface Product {
     isAvailable: boolean;
     quantity: number;
     restaurant: string;
+    // Novos campos para promoções
+    isOnPromotion: boolean;
+    promotionalPrice?: number;
+    discountPercentage?: number;
+    promotionStartDate?: string;
+    promotionEndDate?: string;
+    // Outros campos opcionais
     ingredients?: string[];
     nutritionalInfo?: string;
     allergens?: string;
@@ -25,4 +31,10 @@ export interface ProductFormData {
     image: string;
     quantity: number;
     isAvailable: boolean;
+    // Novos campos para promoções
+    isOnPromotion: boolean;
+    promotionalPrice?: string;
+    discountPercentage?: string;
+    promotionStartDate?: string;
+    promotionEndDate?: string;
 }

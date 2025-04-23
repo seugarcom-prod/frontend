@@ -180,22 +180,6 @@ export default function UnitScheduleForm() {
                     ))}
                 </div>
             </div>
-
-            {/* Footer */}
-            <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200">
-                <div className="flex justify-between max-w-screen-xl mx-auto">
-                    <Button
-                        variant="ghost"
-                        className="flex items-center gap-2"
-                    >
-                        <ArrowLeft className="h-4 w-4" />
-                        <span>Voltar para: Endereço da unidade</span>
-                    </Button>
-                    <Button>
-                        Próximo
-                    </Button>
-                </div>
-            </div>
         </div>
     );
 }

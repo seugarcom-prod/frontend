@@ -1,34 +1,102 @@
+// Implementação para QRCodeHandler.tsx
+
 'use client';
 
-import React, { useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useAuthStore } from '@/stores/auth';
 
-export default function QRCodeHandler() {
-    const params = useParams();
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL;
+
+interface QRCodeHandlerProps {
+    params: {
+        restaurantName: string;
+        tableId: string;
+    };
+}
+
+export default function QRCodeHandler({ params }: QRCodeHandlerProps) {
     const router = useRouter();
-    const restaurantId = params.restaurantId as string;
-    const tableId = params.tableId as string;
+    const { restaurantName, tableId } = params;
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    // Usar os métodos do authStore
+    const { setToken } = useAuthStore();
 
     useEffect(() => {
-        if (!restaurantId || !tableId) {
-            console.error('Parâmetros de QR Code inválidos');
-            router.push('/');
-            return;
-        }
+        const handleQRScan = async () => {
+            try {
+                setLoading(true);
 
-        // Salvar temporariamente a mesa no localStorage
-        localStorage.setItem(`table-${restaurantId}`, tableId);
-        console.log(`Mesa ${tableId} salva para restaurante ${restaurantId}`);
+                // Salvar a mesa no localStorage
+                localStorage.setItem(`table-${restaurantName}`, tableId);
 
-        // Redirecionar para página de identificação
-        router.push(`/restaurant/${restaurantId}/table/${tableId}`);
-    }, [restaurantId, tableId, router]);
+                // Buscar informações do restaurante pelo slug
+                const response = await fetch(`${API_URL}/restaurant/by-slug/${restaurantName}`);
+
+                if (!response.ok) {
+                    throw new Error('Restaurante não encontrado');
+                }
+
+                const restaurant = await response.json();
+
+                // Criar token de convidado
+                const guestToken = `guest_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+
+                // Armazenar o token no store
+                setToken(guestToken);
+
+                // Também armazenar no localStorage como fallback
+                localStorage.setItem('guest_token', guestToken);
+
+                // Redirecionar para a página da mesa
+                router.push(`/${restaurantName}/table/${tableId}`);
+            } catch (error) {
+                console.error('Erro ao processar QR code:', error);
+                setError('Não foi possível acessar este QR code. Verifique se o restaurante existe.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        handleQRScan();
+    }, [restaurantName, tableId, router, setToken]);
+
+    if (loading) {
+        return (
+            <div className="container mx-auto px-4 py-16 text-center">
+                <div className="flex flex-col items-center justify-center min-h-[60vh]">
+                    <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+                    <p className="text-lg text-gray-600">Processando QR Code...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="container mx-auto px-4 py-16 text-center">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
+                    <h2 className="text-xl font-semibold text-red-600 mb-2">Erro</h2>
+                    <p className="text-gray-700 mb-4">{error}</p>
+                    <Button
+                        variant="secondary"
+                        onClick={() => router.push('/')}
+                        className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90"
+                    >
+                        Voltar à página inicial
+                    </Button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="container mx-auto px-4 py-16 text-center">
-            <h1 className="text-xl font-bold mb-4">Redirecionando...</h1>
-            <p className="text-gray-600 mb-8">Aguarde enquanto processamos o QR Code.</p>
-            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p>Redirecionando para a mesa {tableId}...</p>
         </div>
     );
 }

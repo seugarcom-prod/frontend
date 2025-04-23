@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -16,8 +16,17 @@ export function AdminLogin() {
     const [password, setPassword] = useState<string>('');
     const [error, setError] = useState<string>('');
     const [isLoading, setIsLoading] = useState<boolean>(false);
-    const { setRestaurantId, setUserRole, setUserName } = useRestaurantStore();
-    const { setToken, token } = useAuthStore(); // Adicionado para gerenciar o token
+    const { setToken, token } = useAuthStore();
+
+    // Verificar se o token realmente está no Zustand
+    useEffect(() => {
+        const token = useAuthStore.getState().token;
+        console.log('Token no Zustand:', token);
+    }, []);
+
+    useEffect(() => {
+        console.log("Token atualizado: ", token)
+    }, [token])
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -63,6 +72,7 @@ export function AdminLogin() {
                 // 3. Armazenar o token no Zustand
                 const authToken = data.token; // Acesse o token retornado pela API
                 if (authToken) {
+                    console.log("Armazenando token..: ", authToken);
                     useAuthStore.getState().setToken(authToken); // Armazena o token no Zustand
                 } else {
                     console.error('Auth token is null');

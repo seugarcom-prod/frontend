@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, Edit, Trash2, Search, UserCircle } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, UserCircle, ArrowUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -29,19 +29,20 @@ import { formatFullName } from '@/utils/formatFullname';
 import { formatDate } from '@/utils/formatDate';
 import {
     IEmployee,
-    getEmployeesByUnit,
+    getEmployeesByRestaurant,
     deleteEmployee,
     formatRole,
 } from '@/services/employee/index';
+import { useAuthCheck } from '@/hooks/sessionManager';
 
 interface EmployeeListProps {
-    unitId: string;
+    restaurantId: string;
 }
 
-export default function EmployeeList({ unitId }: EmployeeListProps) {
+export default function EmployeeList({ restaurantId }: EmployeeListProps) {
     const router = useRouter();
     const { toast } = useToast();
-
+    const { isAuthenticated, isAdminOrManager, session } = useAuthCheck();
     const [employees, setEmployees] = useState<IEmployee[]>([]);
     const [filteredEmployees, setFilteredEmployees] = useState<IEmployee[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -49,16 +50,18 @@ export default function EmployeeList({ unitId }: EmployeeListProps) {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [employeeToDelete, setEmployeeToDelete] = useState<IEmployee | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
-    // Buscar funcionários
     const fetchEmployees = async () => {
         try {
             setIsLoading(true);
             setError(null);
 
-            const data = await getEmployeesByUnit(unitId);
-            setEmployees(data);
-            setFilteredEmployees(data);
+            if (isAuthenticated && isAdminOrManager) {
+                const data = await getEmployeesByRestaurant(restaurantId, session?.token ?? '');
+                setEmployees(data);
+                setFilteredEmployees(data);
+            }
         } catch (error: any) {
             console.error('Erro ao buscar funcionários:', error);
             setError('Não foi possível carregar a lista de funcionários.');
@@ -74,9 +77,8 @@ export default function EmployeeList({ unitId }: EmployeeListProps) {
 
     useEffect(() => {
         fetchEmployees();
-    }, [unitId]);
+    }, [restaurantId]);
 
-    // Filtrar funcionários quando a pesquisa mudar
     useEffect(() => {
         if (searchQuery.trim() === '') {
             setFilteredEmployees(employees);
@@ -92,13 +94,17 @@ export default function EmployeeList({ unitId }: EmployeeListProps) {
         }
     }, [searchQuery, employees]);
 
-    // Abrir diálogo de confirmação para exclusão
+    const sortedEmployees = [...filteredEmployees].sort((a, b) => {
+        return sortOrder === 'asc'
+            ? a.firstName.localeCompare(b.firstName)
+            : b.firstName.localeCompare(a.firstName);
+    });
+
     const confirmDelete = (employee: IEmployee) => {
         setEmployeeToDelete(employee);
         setDeleteDialogOpen(true);
     };
 
-    // Excluir funcionário
     const handleDelete = async () => {
         if (!employeeToDelete) return;
 
@@ -110,7 +116,6 @@ export default function EmployeeList({ unitId }: EmployeeListProps) {
                 description: `Funcionário ${formatFullName(employeeToDelete.firstName, employeeToDelete.lastName)} excluído com sucesso.`,
             });
 
-            // Atualiza a lista após exclusão
             fetchEmployees();
         } catch (error: any) {
             toast({
@@ -124,17 +129,14 @@ export default function EmployeeList({ unitId }: EmployeeListProps) {
         }
     };
 
-    // Ir para página de edição
     const goToEdit = (employeeId: string) => {
-        router.push(`/admin/units/${unitId}/employees/${employeeId}/edit`);
+        router.push(`/restaurant/${restaurantId}/employees/${employeeId}/edit`);
     };
 
-    // Ir para página de criação
     const goToCreate = () => {
-        router.push(`/admin/units/${unitId}/employees/create`);
+        router.push(`/restaurant/${restaurantId}/employees/create`);
     };
 
-    // Renderizar badge de função com cores correspondentes
     const renderRoleBadge = (role: string) => {
         let variant = 'default';
 
@@ -157,7 +159,6 @@ export default function EmployeeList({ unitId }: EmployeeListProps) {
         );
     };
 
-    // Renderizar skeleton de carregamento
     if (isLoading) {
         return (
             <div className="space-y-4">
@@ -178,7 +179,6 @@ export default function EmployeeList({ unitId }: EmployeeListProps) {
         );
     }
 
-    // Renderizar mensagem de erro
     if (error) {
         return (
             <Card className="bg-red-50 border-red-100">
@@ -191,8 +191,8 @@ export default function EmployeeList({ unitId }: EmployeeListProps) {
     }
 
     return (
-        <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div className="space-y-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                 <h2 className="text-2xl font-bold text-primary">Funcionários</h2>
                 <Button onClick={goToCreate} className="flex items-center gap-2">
                     <PlusCircle size={18} />
@@ -200,33 +200,40 @@ export default function EmployeeList({ unitId }: EmployeeListProps) {
                 </Button>
             </div>
 
-            {/* Barra de pesquisa */}
-            <div className="relative mb-6">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                <Input
-                    type="text"
-                    placeholder="Buscar funcionário por nome, email ou função..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 py-6"
-                />
+            <div className="flex flex-col md:flex-row gap-4 mb-6">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                    <Input
+                        type="text"
+                        placeholder="Buscar funcionário por nome, email ou função..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10"
+                        disabled={employees.length === 0}
+                    />
+                </div>
+
+                <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                    disabled={employees.length === 0}
+                    title={sortOrder === 'asc' ? 'Ordenar Z-A' : 'Ordenar A-Z'}
+                >
+                    <ArrowUpDown className="h-4 w-4" />
+                </Button>
             </div>
 
-            {/* Tabela de funcionários */}
-            {filteredEmployees.length === 0 ? (
+            {employees.length === 0 ? (
                 <Card>
                     <CardContent className="p-6 text-center">
                         <UserCircle size={48} className="mx-auto mb-4 text-gray-300" />
-                        <h3 className="text-lg font-medium mb-2">Nenhum funcionário encontrado</h3>
+                        <h3 className="text-lg font-medium mb-2">Não há funcionários cadastrados na rede.</h3>
                         <p className="text-gray-500 mb-4">
                             {searchQuery
                                 ? 'Não há funcionários correspondentes à sua busca.'
                                 : 'Não há funcionários cadastrados para esta unidade.'}
                         </p>
-                        <Button onClick={goToCreate} className="flex items-center gap-2">
-                            <PlusCircle size={18} />
-                            <span>Adicionar Funcionário</span>
-                        </Button>
                     </CardContent>
                 </Card>
             ) : (
@@ -242,10 +249,10 @@ export default function EmployeeList({ unitId }: EmployeeListProps) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredEmployees.map((employee) => (
+                            {sortedEmployees.map((employee) => (
                                 <TableRow key={employee._id}>
                                     <TableCell className="font-medium">
-                                        <Link href={`/admin/units/${unitId}/employees/${employee._id}`} className="hover:underline">
+                                        <Link href={`/restaurant/${restaurantId}/employees/${employee._id}`} className="hover:underline">
                                             {formatFullName(employee.firstName, employee.lastName)}
                                         </Link>
                                     </TableCell>
@@ -280,7 +287,6 @@ export default function EmployeeList({ unitId }: EmployeeListProps) {
                 </div>
             )}
 
-            {/* Diálogo de confirmação de exclusão */}
             <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>

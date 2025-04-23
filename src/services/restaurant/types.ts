@@ -40,6 +40,7 @@ export interface IRestaurantUnit {
     socialName: string;
     manager: string;
     phone: string;
+    isMatrix?: boolean;
     attendants: string[] | IUser[];
     orders: string[] | IOrder[];
 }

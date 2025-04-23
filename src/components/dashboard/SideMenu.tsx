@@ -6,7 +6,7 @@ import { signOut } from 'next-auth/react'
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Menu, BadgePercent, BarChart, Store, Sun, Cog, Home, LogOut, UserCog2, Moon, SquareMenu } from "lucide-react"
+import { Menu, BadgePercent, BarChart, Store, Sun, Cog, Home, LogOut, UserCog2, Moon, SquareMenu, QrCode } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useSidebar } from "@/components/ui/sidebar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu"
@@ -53,7 +53,7 @@ export function Sidebar({ className }: SidebarProps) {
         },
         {
             title: "Funcionários",
-            href: `/restaurant/${restaurantId}/units/${unitId}/employees`,
+            href: `/restaurant/${restaurantId}/employees`,
             icon: <UserCog2 size={20} />,
             color: "#84cc16"
         },
@@ -64,23 +64,29 @@ export function Sidebar({ className }: SidebarProps) {
             color: "#d946ef"
         },
         {
+            title: "QR-Code",
+            href: `/restaurant/${restaurantId}/qrcode`,
+            icon: <QrCode size={20} />,
+            color: "#0400ff"
+        },
+        {
             title: "Menu",
             href: `/restaurant/${restaurantId}/products`,
             icon: <SquareMenu size={20} />,
             color: "#f3de1f"
         },
-        {
-            title: "Promoções",
-            href: "/promocoes",
-            icon: <BadgePercent size={20} />,
-            color: "#f97316"
-        },
-        {
-            title: "Estatísticas",
-            href: "/estatisticas",
-            icon: <BarChart size={20} />,
-            color: "#06b6d4"
-        }
+        // {
+        //     title: "Promoções",
+        //     href: "/promocoes",
+        //     icon: <BadgePercent size={20} />,
+        //     color: "#f97316"
+        // },
+        // {
+        //     title: "Estatísticas",
+        //     href: "/estatisticas",
+        //     icon: <BarChart size={20} />,
+        //     color: "#06b6d4"
+        // }
     ]
 
     return (

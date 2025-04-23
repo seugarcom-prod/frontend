@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthCheck } from '@/hooks/sessionManager';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 
@@ -17,7 +17,7 @@ import { useRestaurantStore } from '@/stores';
 
 export default function MobileRestaurantRegisterContainer() {
     const router = useRouter();
-    const { registerAdminWithRestaurant } = useAuth();
+    const { registerAdminWithRestaurant } = useAuthCheck();
 
     // Estado para controlar o passo atual
     const [step, setStep] = useState(1);

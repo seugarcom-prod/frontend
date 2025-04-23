@@ -2,31 +2,24 @@
 "use client"
 
 import { useState } from 'react';
-import { useGuestLogin } from '@/hooks/useAuth';
+import { useAuthCheck } from '@/hooks/sessionManager';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2 } from 'lucide-react';
-import { formatCpf } from '@/utils';
 
 interface GuestLoginProps {
     onLoginSuccess?: () => void;
 }
 
 export function GuestLogin({ onLoginSuccess }: GuestLoginProps) {
-    const [cpf, setCpf] = useState('');
-    const [email, setEmail] = useState('');
-    const { mutate, isPending, error } = useGuestLogin();
-
-    const handleCPFChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const formatted = formatCpf(e.target.value);
-        setCpf(formatted);
-    };
+    const [name, setName] = useState('');
+    const { authenticateAsGuest, isLoading, error } = useAuthCheck();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('GuestLogin - Enviando formulário de login como convidado:', { cpf, email });
+        console.log('GuestLogin - Enviando formulário de login como convidado:', { name });
 
         try {
             // Verificar se há informações de mesa armazenadas
@@ -37,19 +30,28 @@ export function GuestLogin({ onLoginSuccess }: GuestLoginProps) {
                 throw new Error('Informações da mesa não encontradas. Por favor, escaneie o QR Code novamente.');
             }
 
-            await mutate(
-                { cpf, email },
-                {
-                    onSuccess: () => {
-                        console.log('Login como convidado bem-sucedido');
-                        if (onLoginSuccess) {
-                            onLoginSuccess();
-                        }
-                    }
+            // Extrair restaurantName e tableId
+            const restaurantName = tableKey.replace('table-', '');
+            const tableId = localStorage.getItem(tableKey);
+
+            if (!tableId) {
+                throw new Error('Número da mesa não encontrado. Por favor, escaneie o QR Code novamente.');
+            }
+
+            // Usar o novo método authenticateAsGuest
+            const result = await authenticateAsGuest(tableId, '', restaurantName);
+
+            if (result.success) {
+                console.log('Login como convidado bem-sucedido');
+
+                // Armazenar o nome do convidado para uso posterior
+                localStorage.setItem('guest_name', name);
+
+                if (onLoginSuccess) {
+                    onLoginSuccess();
                 }
-            );
-        } catch (err) {
-            // O erro já está sendo capturado pelo useGuestLogin hook
+            }
+        } catch (err: any) {
             console.error('GuestLogin - Erro tratado no componente:', err);
         }
     };
@@ -59,32 +61,19 @@ export function GuestLogin({ onLoginSuccess }: GuestLoginProps) {
             {error && (
                 <Alert variant="destructive">
                     <AlertDescription>
-                        {error.message || 'Falha ao fazer login como convidado. Por favor, verifique suas informações.'}
+                        {error || 'Falha ao fazer login como convidado. Por favor, verifique suas informações.'}
                     </AlertDescription>
                 </Alert>
             )}
 
             <div className="space-y-2">
-                <Label htmlFor="cpf">CPF</Label>
+                <Label htmlFor="name">Nome</Label>
                 <Input
-                    id="cpf"
+                    id="name"
                     type="text"
-                    placeholder="000.000.000-00"
-                    value={cpf}
-                    onChange={handleCPFChange}
-                    maxLength={14}
-                    required
-                />
-            </div>
-
-            <div className="space-y-2">
-                <Label htmlFor="email">E-mail</Label>
-                <Input
-                    id="email"
-                    type="email"
-                    placeholder="seu.email@exemplo.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Seu nome"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     required
                 />
             </div>
@@ -92,9 +81,9 @@ export function GuestLogin({ onLoginSuccess }: GuestLoginProps) {
             <Button
                 type="submit"
                 className="w-full"
-                disabled={isPending}
+                disabled={isLoading}
             >
-                {isPending ? (
+                {isLoading ? (
                     <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Entrando...
@@ -105,7 +94,7 @@ export function GuestLogin({ onLoginSuccess }: GuestLoginProps) {
             </Button>
 
             <p className="text-xs text-gray-500 mt-2">
-                Usaremos seu CPF e email apenas para identificação durante sua visita.
+                Usaremos seu nome apenas para identificação durante sua visita.
             </p>
         </form>
     );

@@ -44,7 +44,7 @@ export const useRestaurantUnitStore = create<RestaurantUnitState>()(
             fetchUnits: async (restaurantId: string) => {
                 try {
                     const headers = useAuthStore.getState().getHeaders();
-                    const response = await fetch(`/restaurant/${restaurantId}/units`, {
+                    const response = await fetch(`/restaurant/${restaurantId}/units?includeMatrix=true`, {
                         headers,
                     });
 

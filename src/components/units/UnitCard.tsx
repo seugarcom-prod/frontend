@@ -1,4 +1,5 @@
-"use client";
+'use client'
+
 import { useEffect, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowRight, Flame } from "lucide-react";

@@ -5,34 +5,38 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/useToast";
 import { useRestaurantUnitFormStore } from "@/stores";
+import { useEmployeeStore } from "@/stores/employees";
+import { useAuthCheck } from "@/hooks/sessionManager";
 
 interface Manager {
     id: string;
     name: string;
 }
 
-export default function UnitManagersForm() {
-    const { unitData, updateUnitData } = useRestaurantUnitFormStore();
-    const [availableManagers, setAvailableManagers] = useState<Manager[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const toast = useToast();
+interface iUnitManagersForm { restaurantId: string; }
 
-    const API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL;
+export default function UnitManagersForm({ restaurantId }: iUnitManagersForm) {
+    const { unitData, updateUnitData } = useRestaurantUnitFormStore();
+    const { employees, fetchEmployees, isLoading } = useEmployeeStore();
+    const [availableManagers, setAvailableManagers] = useState<Manager[]>([]);
+    const toast = useToast();
+    const { session } = useAuthCheck();
 
     useEffect(() => {
-        const fetchManagers = async () => {
+        const fetchData = async () => {
             try {
-                const response = await fetch(`${API_URL}/managers`, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-                    }
-                });
+                // Obter o token de autenticação
+                if (!session?.token) {
+                    throw new Error('Token não encontrado');
+                }
 
-                if (!response.ok) throw new Error('Falha ao carregar gerentes');
+                if (!restaurantId || !session?.token) {
+                    throw new Error('Informações de autenticação insuficientes');
+                }
 
-                const data = await response.json();
-                setAvailableManagers(data);
+                await fetchEmployees(restaurantId, session?.token);
             } catch (error) {
+                console.error('Erro ao carregar gerentes:', error);
                 toast.toast({
                     variant: "destructive",
                     title: "Erro",
@@ -41,8 +45,21 @@ export default function UnitManagersForm() {
             }
         };
 
-        fetchManagers();
-    }, []);
+        fetchData();
+    }, [session, restaurantId]);
+
+    useEffect(() => {
+        const managers = employees
+            .filter(emp => emp.role === 'MANAGER')
+            .map(manager => (
+                {
+                    id: manager._id,
+                    name: `${manager.firstName} ${manager.lastName}`
+                }));
+
+        setAvailableManagers(managers);
+        console.log('Gerentes disponíveis:', managers); // Debug
+    }, [employees])
 
     const handleToggleManager = (managerId: string) => {
         const newSelectedManagers = [...unitData.managers];
@@ -74,26 +91,31 @@ export default function UnitManagersForm() {
             </div>
 
             <div className="space-y-2">
-                {unitData.managers.map((manager) => (
-                    <div
-                        key={unitData.managers[0].id}
-                        className="flex items-center gap-3 border border-border rounded-md p-4"
-                    >
-                        <Checkbox
-                            id={`manager-${manager.id}`}
-                            checked={unitData.managers.includes({ ...manager, id: manager.id })}
-                            onCheckedChange={() => handleToggleManager(manager.id)}
-                        />
-                        <Label
-                            htmlFor={`manager-${manager.id}`}
-                            className="font-normal cursor-pointer flex-1"
-                        >
-                            {manager.name}
-                        </Label>
+                {availableManagers.length === 0 ? (
+                    <div className="text-center py-4 text-gray-500">
+                        Nenhum gerente disponível. Cadastre gerentes antes de continuar.
                     </div>
-                ))}
+                ) : (
+                    availableManagers.map((manager) => (
+                        <div
+                            key={manager.id}
+                            className="flex items-center gap-3 border border-border rounded-md p-4"
+                        >
+                            <Checkbox
+                                id={`manager-${manager.id}`}
+                                checked={unitData.managers.some(m => m.id === manager.id)}
+                                onCheckedChange={() => handleToggleManager(manager.id)}
+                            />
+                            <Label
+                                htmlFor={`manager-${manager.id}`}
+                                className="font-normal cursor-pointer flex-1"
+                            >
+                                {manager.name}
+                            </Label>
+                        </div>
+                    ))
+                )}
             </div>
         </div>
     );
 }
-
