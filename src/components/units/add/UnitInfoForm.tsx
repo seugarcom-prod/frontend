@@ -42,7 +42,10 @@ export default function UnitInfoForm() {
   const handleCheckboxChange = (checked: boolean) => {
     updateUnitData({ useMatrixCNPJ: checked });
     if (checked) {
-      const formattedCNPJ = unitData.cnpj.replace(/[^\d]/g, '');
+
+      const cnpj = `${unitData.cnpjPart1}${unitData.cnpjPart2}${unitData.cnpjPart3}`.replace(/\D/g, '');
+
+      const formattedCNPJ = cnpj.replace(/[^\d]/g, '');
       if (formattedCNPJ.length >= 14) {
         const part1 = formattedCNPJ.substring(0, 8);
         const part2 = formattedCNPJ.substring(8, 12);

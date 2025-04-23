@@ -1,5 +1,6 @@
 // services/employee/index.ts
-const API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || "http://localhost:3333";
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL;
+
 // Interfaces
 export interface IEmployee {
     _id: string;
@@ -7,6 +8,7 @@ export interface IEmployee {
     lastName: string;
     email: string;
     phone?: string;
+    unitId?: string;
     role: "ADMIN" | "MANAGER" | "ATTENDANT";
     createdAt?: string;
 }
@@ -16,7 +18,7 @@ export interface ICreateEmployeeData {
     lastName: string;
     email: string;
     phone?: string;
-    password: string;
+    password?: string;
     role: "ADMIN" | "MANAGER" | "ATTENDANT";
     unitId: string;
 }
@@ -30,6 +32,7 @@ export interface IUpdateEmployeeData {
     role?: "ADMIN" | "MANAGER" | "ATTENDANT";
 }
 
+
 // Formatador de roles para exibição
 export const formatRole = (role: string): string => {
     const roleMap: Record<string, string> = {
@@ -38,6 +41,28 @@ export const formatRole = (role: string): string => {
         'ATTENDANT': 'Atendente'
     };
     return roleMap[role] || role;
+};
+
+export const getEmployeesByRestaurant = async (restaurantId: string, token: string): Promise<IEmployee[]> => {
+    try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/restaurant/${restaurantId}/employees`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Falha ao buscar funcionários');
+        }
+
+        const data = await response.json();
+        console.log('Dados recebidos da API:', data);
+        return data;
+    } catch (error) {
+        console.error('Erro ao buscar funcionários:', error);
+        throw error;
+    }
 };
 
 // Obter todos os funcionários de uma unidade
@@ -87,27 +112,25 @@ export const getEmployeeById = async (id: string): Promise<IEmployee> => {
 };
 
 // Criar funcionário
-export const createEmployee = async (data: ICreateEmployeeData): Promise<IEmployee> => {
+export const createEmployee = async (employeeData: Omit<IEmployee, '_id'>, restaurantId: string, token: string): Promise<IEmployee> => {
     try {
-        const token = sessionStorage.getItem('token'); // Ajuste conforme seu sistema de autenticação
-
-        const response = await fetch(`${API_URL}/employee/create`, {
+        const response = await fetch(`${API_URL}/users/${restaurantId}/create`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify(employeeData)
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || "Erro ao criar funcionário");
+            const error = await response.json();
+            throw new Error(error.msg || 'Falha ao criar funcionário');
         }
 
         return await response.json();
-    } catch (error: any) {
-        console.error("Erro ao criar funcionário:", error);
+    } catch (error) {
+        console.error('Erro ao criar funcionário:', error);
         throw error;
     }
 };

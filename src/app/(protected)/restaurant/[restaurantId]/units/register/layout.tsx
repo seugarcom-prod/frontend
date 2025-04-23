@@ -1,6 +1,7 @@
 "use client"
 
 import { SidebarProvider } from "@/components/ui/sidebar"
+import Providers from "@/providers/providers"
 
 export default function RestaurantUnitRegisterLayout({
     children,
@@ -8,10 +9,10 @@ export default function RestaurantUnitRegisterLayout({
     children: React.ReactNode
 }) {
     return (
-        <SidebarProvider>
-            <div className="min-h-screen bg-background">
+        <Providers>
+            <SidebarProvider>
                 {children}
-            </div>
-        </SidebarProvider>
+            </SidebarProvider>
+        </Providers>
     );
 }

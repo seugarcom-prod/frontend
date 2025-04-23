@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UserLogin } from '@/components/login/UserLogin';
 import { GuestLogin } from '@/components/login/GuestLogin';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthCheck } from '@/hooks/sessionManager';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 import { useRestaurantStore } from '@/stores';
@@ -13,7 +13,7 @@ import { useRestaurantStore } from '@/stores';
 export function LoginPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { authenticateAsGuest, isAuthenticated, isRole, loading } = useAuth();
+    const { authenticateAsGuest, isAuthenticated, role, isLoading } = useAuthCheck();
     const [restaurantInfo, setRestaurantInfo] = useState<{ name: string } | null>(null);
 
     // Obter parâmetros da URL
@@ -23,14 +23,14 @@ export function LoginPage() {
 
     // Redirecionar se já estiver autenticado
     useEffect(() => {
-        if (!loading && isAuthenticated) {
-            if (isRole('ADMIN')) {
+        if (!isLoading && isAuthenticated) {
+            if (role === 'ADMIN') {
                 router.push(`/restaurant/${restaurantId}/dashboard`);
-            } else if (isRole('MANAGER')) {
+            } else if (role === 'MANAGER') {
                 router.push(`/restaurant/${restaurantId}/dashboard`);
-            } else if (isRole('ATTENDANT')) {
+            } else if (role === 'ATTENDANT') {
                 router.push('/attendant/orders');
-            } else if (isRole('CLIENT') || 'GUEST') {
+            } else if (role === 'CLIENT' || 'GUEST') {
                 // Para cliente ou convidado, redirecionar conforme params
                 if (redirect) {
                     router.push(redirect);
@@ -41,7 +41,7 @@ export function LoginPage() {
                 }
             }
         }
-    }, [isAuthenticated, isRole, loading, router, redirect, restaurantId]);
+    }, [isAuthenticated, role, isLoading, router, redirect, restaurantId]);
 
     // Buscar informações do restaurante
     useEffect(() => {
@@ -83,7 +83,7 @@ export function LoginPage() {
     };
 
     // Mostrar loader enquanto verifica autenticação
-    if (loading) {
+    if (isLoading) {
         return (
             <div className="flex min-h-screen items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />

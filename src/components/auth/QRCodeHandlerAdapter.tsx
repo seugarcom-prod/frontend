@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
+import { useAuthCheck } from '@/hooks/sessionManager';
 
 // API URL
 const API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || '';
@@ -19,7 +19,7 @@ interface QRCodeHandlerProps {
 export default function QRCodeHandler({ params }: QRCodeHandlerProps) {
     const router = useRouter();
     const { restaurantName, tableId } = params;
-    const { authenticateAsGuest, isAuthenticated, user } = useAuth();
+    const { authenticateAsGuest, isAuthenticated } = useAuthCheck();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 

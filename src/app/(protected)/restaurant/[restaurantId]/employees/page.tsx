@@ -12,22 +12,21 @@ import { cn } from '@/lib/utils';
 
 export default function EmployeesPage() {
     const router = useRouter();
-    const params = useParams();
-    const unitId = params.unitId as string;
-    const { isAuthenticated, isLoading } = useAuthCheck();
+    const { restaurantId } = useParams();
+    const { isAuthenticated, isLoading, isAdminOrManager } = useAuthCheck();
     const { isOpen } = useSidebar();
 
     if (isLoading) {
         return <div>Loading...</div>; // Ou algum componente de carregamento
     }
 
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !isAdminOrManager) {
         router.push('/login');
         return null; // Evita renderizar o componente até o redirecionamento
     }
 
     return (
-        <div className="container mx-auto px-4 py-8">
+        <div className="w-full flex flex-col h-screen">
             <Header />
 
             <div className={cn(
@@ -38,7 +37,7 @@ export default function EmployeesPage() {
 
                 <div className="flex-1 w-full overflow-auto">
                     <div className="max-w-5xl mx-auto px-6 py-4">
-                        <EmployeeList unitId={unitId} />
+                        <EmployeeList restaurantId={String(restaurantId)} />
                     </div>
                 </div>
             </div>

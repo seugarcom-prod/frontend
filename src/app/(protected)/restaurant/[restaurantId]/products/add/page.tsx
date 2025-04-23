@@ -1,21 +1,18 @@
-// app/restaurant/[restaurantId]/products/page.tsx
 'use client';
 
-import React from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import ProductForm from '@/components/products/ProductsForm';
 import Header from '@/components/header/Header';
 import { Sidebar } from '@/components/dashboard/SideMenu';
 import { useSidebar } from '@/components/ui/sidebar';
-import ProductsList from '@/components/products/ProductsList';
 import { useAuthCheck } from '@/hooks/sessionManager';
+import { cn } from '@/lib/utils';
+import { ChevronLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
-export default function ProductsPage() {
+export default function NewProductPage() {
     const { isAuthenticated, isLoading } = useAuthCheck();
-    const router = useRouter();
     const { isOpen } = useSidebar();
-    const { restaurantId } = useParams();
+    const router = useRouter();
 
     if (isLoading) {
         return <div>Loading...</div>;
@@ -31,7 +28,6 @@ export default function ProductsPage() {
             <Header />
             <div className={cn("flex flex-col w-full transition-all duration-300", isOpen ? "ml-64" : "ml-0")}>
                 <Sidebar />
-
                 <div className="px-8 py-6">
                     <div className="flex items-center mb-6">
                         <button
@@ -42,8 +38,7 @@ export default function ProductsPage() {
                         </button>
                         <h1 className="text-2xl font-bold">Produtos</h1>
                     </div>
-
-                    <ProductsList restaurantId={String(restaurantId)} />
+                    <ProductForm />
                 </div>
             </div>
         </div>

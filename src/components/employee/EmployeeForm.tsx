@@ -1,8 +1,5 @@
-'use client';
-
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
 import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,23 +14,28 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/useToast';
+import { useEmployeeStore } from '@/stores/employees';
 import {
     getEmployeeById
 } from '@/services/employee/index';
+import { useAuthCheck } from '@/hooks/sessionManager';
+import { useRestaurantUnitStore } from '@/stores';
 
 interface EmployeeFormProps {
-    unitId: string;
+    restaurantId: string;
     employeeId?: string; // Undefined para novo funcionário
     isEditMode: boolean;
 }
 
-export default function EmployeeForm({ unitId, employeeId, isEditMode }: EmployeeFormProps) {
+export default function EmployeeForm({ restaurantId, employeeId, isEditMode }: EmployeeFormProps) {
     const router = useRouter();
     const { toast } = useToast();
-    const { data: session } = useSession();
-    const [isLoading, setIsLoading] = useState(false);
+    const { session, isAdminOrManager } = useAuthCheck();
+    const { units, setUnits } = useEmployeeStore();
+    const { fetchUnitByRestaurantId } = useRestaurantUnitStore();
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [restaurantName, setRestaurantName] = useState('');
 
     // Dados do formulário
     const [formData, setFormData] = useState({
@@ -43,50 +45,87 @@ export default function EmployeeForm({ unitId, employeeId, isEditMode }: Employe
         phone: '',
         password: '',
         confirmPassword: '',
-        role: ''
+        role: '',
+        unitId: ''
     });
 
     // Erros de validação
     const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-    // Carregar dados de funcionário para edição
-    useEffect(() => {
-        const fetchEmployeeData = async () => {
-            if (isEditMode && employeeId) {
-                try {
-                    setIsLoading(true);
-                    const employee = await getEmployeeById(employeeId);
+    // Monta uma lista com as unidades incluindo a matriz
+    const getUnitsWithMatrix = () => {
+        // Se já temos uma unidade matriz entre as unidades, não precisamos adicionar
+        const hasMatrix = units.some(unit => unit.isMatrix === true);
 
-                    setFormData({
-                        firstName: employee.firstName,
-                        lastName: employee.lastName,
-                        email: employee.email,
-                        phone: employee.phone || '',
-                        password: '',
-                        confirmPassword: '',
-                        role: employee.role
+        if (hasMatrix || units.length === 0) {
+            // Se não temos unidades ou já temos matriz, retornamos as unidades como estão
+            return units;
+        } else {
+            // Adicionar a matriz como a primeira opção
+            return [
+                {
+                    _id: restaurantId, // Usa o ID do restaurante para a matriz
+                    name: `${restaurantName || 'Restaurante'} (MATRIZ)`,
+                    isMatrix: true
+                },
+                ...units
+            ];
+        }
+    };
+
+    useEffect(() => {
+        const fetchData = async () => {
+            if (session?.token && restaurantId) {
+                try {
+                    // Buscar dados do restaurante para obter o nome
+                    const restaurantResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/restaurant/${restaurantId}`, {
+                        headers: {
+                            'Authorization': `Bearer ${session.token}`
+                        }
                     });
+
+                    if (restaurantResponse.ok) {
+                        const restaurantData = await restaurantResponse.json();
+                        setRestaurantName(restaurantData.name || 'Restaurante');
+                    }
+
+                    // Buscar unidades
+                    const unitsData = await fetchUnitByRestaurantId(restaurantId);
+                    if (unitsData && Array.isArray(unitsData)) {
+                        setUnits(unitsData);
+                    }
+
+                    // Buscar dados do funcionário se estiver em modo de edição
+                    if (isEditMode && employeeId) {
+                        const employee = await getEmployeeById(employeeId);
+                        setFormData({
+                            firstName: employee.firstName,
+                            lastName: employee.lastName,
+                            email: employee.email,
+                            phone: employee.phone || '',
+                            password: '',
+                            confirmPassword: '',
+                            role: employee.role,
+                            unitId: employee.unitId || ''
+                        });
+                    }
                 } catch (error) {
-                    console.error('Erro ao buscar dados do funcionário:', error);
-                    setError('Não foi possível carregar os dados do funcionário.');
+                    console.error('Erro ao carregar dados:', error);
                     toast({
                         title: "Erro",
-                        description: "Não foi possível carregar os dados do funcionário.",
+                        description: "Erro ao carregar dados",
                         variant: "destructive"
                     });
-                } finally {
-                    setIsLoading(false);
                 }
             }
         };
 
-        fetchEmployeeData();
-    }, [isEditMode, employeeId, toast]);
+        fetchData();
+    }, [restaurantId, employeeId, isEditMode, session?.token]);
 
     // Atualizar dados do formulário
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        console.log(`Mudança no campo ${name}: ${value}`); // Adicione este log
         setFormData(prev => ({ ...prev, [name]: value }));
 
         // Limpar erro de validação quando o usuário digita
@@ -101,7 +140,6 @@ export default function EmployeeForm({ unitId, employeeId, isEditMode }: Employe
 
     // Atualizar função selecionada
     const handleRoleChange = (value: string) => {
-        console.log("Role: ", value)
         setFormData(prev => ({ ...prev, role: value }));
 
         // Limpar erro de validação
@@ -112,6 +150,11 @@ export default function EmployeeForm({ unitId, employeeId, isEditMode }: Employe
                 return newErrors;
             });
         }
+    };
+
+    // Atualizar unidade selecionada
+    const handleUnitChange = (value: string) => {
+        setFormData(prev => ({ ...prev, unitId: value }));
     };
 
     // Validar formulário
@@ -136,6 +179,10 @@ export default function EmployeeForm({ unitId, employeeId, isEditMode }: Employe
             errors.role = 'Função é obrigatória';
         }
 
+        if (!formData.unitId) {
+            errors.unitId = 'Unidade é obrigatória';
+        }
+
         // Validação de senha apenas para criação ou se estiver alterando a senha
         if (formData.role === 'ADMIN' || formData.role === 'MANAGER') {
             if (!isEditMode && !formData.password) {
@@ -150,121 +197,118 @@ export default function EmployeeForm({ unitId, employeeId, isEditMode }: Employe
         }
 
         setValidationErrors(errors);
-        const isValid = Object.keys(errors).length === 0;
-        console.log('Validação do formulário:', isValid);
-        return isValid;
+        return Object.keys(errors).length === 0;
     };
 
     // Enviar formulário
     const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault(); // Fundamental para impedir o comportamento padrão do form
-        console.log("Formulário submetido", formData);
+        e.preventDefault();
 
         if (!validateForm()) return;
 
         setIsSaving(true);
         setError(null);
 
-        try {
-            // Obter token da sessão
-            const token = session?.token || ''; // Ajuste conforme sua implementação do NextAuth
+        if (isAdminOrManager) {
+            try {
+                const token = session?.token || '';
 
-            if (isEditMode && employeeId) {
-                // Código de atualização...
-            } else {
-                // Criar novo funcionário
-                const createData = {
-                    firstName: formData.firstName,
-                    lastName: formData.lastName,
-                    email: formData.email,
-                    phone: formData.phone || undefined,
-                    role: formData.role as "ADMIN" | "MANAGER" | "ATTENDANT",
-                    unitId: unitId,
-                    password: formData.role === 'ADMIN' || formData.role === 'MANAGER'
-                        ? formData.password
-                        : ""
-                };
+                if (isEditMode && employeeId) {
+                    // const createData = {
+                    //     firstName: formData.firstName,
+                    //     lastName: formData.lastName,
+                    //     email: formData.email,
+                    //     phone: formData.phone || undefined,
+                    //     role: formData.role as "ADMIN" | "MANAGER" | "ATTENDANT",
+                    //     unitId: formData.unitId,
+                    //     password: formData.role === 'ADMIN' || formData.role === 'MANAGER'
+                    //         ? formData.password
+                    //         : ""
+                    // };
 
-                console.log('Enviando dados:', createData);
+                    // const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/users/${employeeId}/edit`, {
+                    //     method: 'POST',
+                    //     headers: {
+                    //         'Content-Type': 'application/json',
+                    //         'Authorization': `Bearer ${token}`
+                    //     },
+                    //     body: JSON.stringify(createData)
+                    // });
 
-                // Fazer requisição para a API
-                const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/employee/create`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` // Use o token da sessão
-                    },
-                    body: JSON.stringify(createData)
-                });
 
-                console.log('Status da resposta:', response.status); // Debugging
+                    // if (!response.ok) {
+                    //     const errorData = await response.json();
+                    //     throw new Error(errorData.message || "Erro ao criar funcionário");
+                    // }
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || "Erro ao criar funcionário");
+                    // toast({
+                    //     title: "Sucesso",
+                    //     description: "Funcionário criado com sucesso."
+                    // });
+
+                    // router.push(`/admin/units/${formData.unitId}/employees`);
+                } else {
+                    const createData = {
+                        firstName: formData.firstName,
+                        lastName: formData.lastName,
+                        email: formData.email,
+                        phone: formData.phone || undefined,
+                        role: formData.role as "ADMIN" | "MANAGER" | "ATTENDANT",
+                        unitId: formData.unitId,
+                        password: formData.role === 'ADMIN' || formData.role === 'MANAGER'
+                            ? formData.password
+                            : ""
+                    };
+
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/users/${restaurantId}/create`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify(createData)
+                    });
+
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || "Erro ao criar funcionário");
+                    }
+
+                    toast({
+                        title: "Sucesso",
+                        description: "Funcionário criado com sucesso."
+                    });
+
+                    router.push(`/restaurant/${restaurantId}/employees`);
                 }
-
-                const data = await response.json();
-                console.log('Resposta:', data); // Debugging
-
+            } catch (error: any) {
+                setError(error.message || 'Ocorreu um erro ao salvar o funcionário.');
                 toast({
-                    title: "Sucesso",
-                    description: "Funcionário criado com sucesso."
+                    title: "Erro",
+                    description: error.message || "Não foi possível salvar o funcionário.",
+                    variant: "destructive"
                 });
-
-                // Redirecionar para a lista após salvar
-                router.push(`/admin/units/${unitId}/employees`);
+            } finally {
+                setIsSaving(false);
             }
-        } catch (error: any) {
-            console.error('Erro ao salvar funcionário:', error);
-            setError(error.message || 'Ocorreu um erro ao salvar o funcionário.');
-            toast({
-                title: "Erro",
-                description: error.message || "Não foi possível salvar o funcionário.",
-                variant: "destructive"
-            });
-        } finally {
-            setIsSaving(false);
         }
     };
 
     // Voltar para a lista
     const goBack = () => {
-        router.push(`/admin/units/${unitId}/employees`);
+        router.push(`/restaurant/${restaurantId}/employees`);
     };
 
-    // Renderizar skeleton de carregamento
-    if (isEditMode && isLoading) {
-        return (
-            <div className="space-y-6 animate-pulse">
-                <div className="flex items-center gap-2 mb-6">
-                    <div className="h-8 w-8 bg-gray-200 rounded-full"></div>
-                    <div className="h-8 bg-gray-200 rounded w-64"></div>
-                </div>
-
-                <div className="space-y-8">
-                    <div>
-                        <div className="h-5 bg-gray-200 rounded w-32 mb-2"></div>
-                        <div className="h-10 bg-gray-200 rounded w-full"></div>
-                    </div>
-
-                    <div>
-                        <div className="h-5 bg-gray-200 rounded w-32 mb-2"></div>
-                        <div className="h-10 bg-gray-200 rounded w-full"></div>
-                    </div>
-
-                    <div>
-                        <div className="h-5 bg-gray-200 rounded w-32 mb-2"></div>
-                        <div className="h-10 bg-gray-200 rounded w-full"></div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
+    // Obtém a lista completa de unidades com a matriz
+    const unitsWithMatrix = getUnitsWithMatrix();
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div className="flex flex-row sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <h1 className="text-2xl font-bold text-primary">
+                    {isEditMode ? 'Editar Funcionário' : 'Novo Funcionário'}
+                </h1>
                 <Button
                     variant="ghost"
                     onClick={goBack}
@@ -273,9 +317,6 @@ export default function EmployeeForm({ unitId, employeeId, isEditMode }: Employe
                     <ArrowLeft size={18} />
                     <span>Voltar para lista</span>
                 </Button>
-                <h1 className="text-2xl font-bold text-primary">
-                    {isEditMode ? 'Editar Funcionário' : 'Novo Funcionário'}
-                </h1>
             </div>
 
             {error && (
@@ -372,6 +413,42 @@ export default function EmployeeForm({ unitId, employeeId, isEditMode }: Employe
                         </Select>
                         {validationErrors.role && (
                             <p className="text-red-500 text-sm">{validationErrors.role}</p>
+                        )}
+                    </div>
+
+                    {/* Unidade */}
+                    <div className="space-y-2">
+                        <Label htmlFor="unitId">Unidade <span className="text-red-500">*</span></Label>
+                        <Select
+                            value={formData.unitId}
+                            onValueChange={handleUnitChange}
+                        >
+                            <SelectTrigger
+                                id="unitId"
+                                className={validationErrors.unitId ? "border-red-500" : ""}
+                            >
+                                <SelectValue placeholder="Selecione uma unidade" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    {unitsWithMatrix.length === 0 ? (
+                                        // Se não houver unidades, mostra apenas a matriz
+                                        <SelectItem value={restaurantId}>
+                                            {`${restaurantName || 'Restaurante'} (MATRIZ)`}
+                                        </SelectItem>
+                                    ) : (
+                                        // Se houver unidades, mostra a lista com a matriz
+                                        unitsWithMatrix.map((unit: any) => (
+                                            <SelectItem key={unit._id} value={unit._id}>
+                                                {unit.isMatrix ? `${restaurantName || 'Restaurante'} (MATRIZ)` : (unit.name || 'Unidade')}
+                                            </SelectItem>
+                                        ))
+                                    )}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                        {validationErrors.unitId && (
+                            <p className="text-red-500 text-sm">{validationErrors.unitId}</p>
                         )}
                     </div>
                 </div>

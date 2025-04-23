@@ -1,7 +1,7 @@
 import "./app/globals.css";
 import { Inter } from "next/font/google";
 import { ReactNode } from "react";
-import { Providers } from "./providers/queryProvider";
+import Providers from "./providers/providers";
 import { ToastProvider } from "./components/toast/toastContext";
 import { Toaster } from "./components/toast/toaster";
 import { ThemeProvider } from "./components/theme_provider";

@@ -10,7 +10,7 @@ export function ActionCards() {
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Link href={`/restaurant/${restaurantId}/units/employees`}>
+            <Link href={`/restaurant/${restaurantId}/employees`}>
                 <Card className="hover:shadow-md transition-shadow border border-border bg-transparent">
                     <CardContent className="p-6">
                         <div className="flex items-start gap-4">

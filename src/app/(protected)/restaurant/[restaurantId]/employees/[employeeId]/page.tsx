@@ -1,24 +1,33 @@
+// Implementação para o componente EmployeeDetailsPage
+
 'use client';
 
 import React, { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
 import { Card, CardContent } from '@/components/ui/card';
-import EmployeeForm from '@/components/employee/EmployeeForm';
+import EmployeeDetails from '@/components/employee/EmployeeDetails';
+import { useAuthCheck } from '@/hooks/sessionManager';
 
-const CreateEmployeePage: React.FC = () => {
+export default function EmployeeDetailsPage() {
     const params = useParams();
     const router = useRouter();
-    const { data: session, status } = useSession();
     const unitId = params.unitId as string;
+    const employeeId = params.employeeId as string;
 
+    // Usar o hook de verificação de autenticação
+    const { isAuthenticated, isAdmin, isManager, isLoading } = useAuthCheck();
+
+    // Verificar se o usuário está autorizado (admin ou gerente)
+    const isAuthorized = isAuthenticated && (isAdmin || isManager);
+
+    // Redirecionar se não estiver autenticado após carregamento
     useEffect(() => {
-        if (status === 'unauthenticated') {
+        if (!isLoading && !isAuthenticated) {
             router.push('/login');
         }
-    }, [status, router]);
+    }, [isLoading, isAuthenticated, router]);
 
-    if (status === 'loading') {
+    if (isLoading) {
         return (
             <div className="container mx-auto px-4 py-8">
                 <div className="animate-pulse">
@@ -33,12 +42,6 @@ const CreateEmployeePage: React.FC = () => {
             </div>
         );
     }
-
-    if (status === 'unauthenticated') {
-        return null;
-    }
-
-    const isAuthorized = session?.user?.role === 'ADMIN' || session?.user?.role === 'MANAGER';
 
     if (!isAuthorized) {
         return (
@@ -55,9 +58,7 @@ const CreateEmployeePage: React.FC = () => {
 
     return (
         <div className="container mx-auto px-4 py-8">
-            <EmployeeForm unitId={unitId} isEditMode={false} />
+            <EmployeeDetails unitId={unitId} employeeId={employeeId} />
         </div>
     );
-};
-
-export default CreateEmployeePage; 
+}

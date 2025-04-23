@@ -11,9 +11,7 @@ import { useToast } from '@/hooks/useToast';
 import {
     IEmployee,
     getEmployeeById,
-    formatFullName,
     formatRole,
-    formatDate
 } from '@/services/employee/index';
 
 interface EmployeeDetailsProps {
@@ -159,7 +157,7 @@ export default function EmployeeDetails({ unitId, employeeId }: EmployeeDetailsP
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                         <div>
                             <h2 className="text-xl font-bold mb-1">
-                                {formatFullName(employee.firstName, employee.lastName)}
+                                {`${employee.firstName} ${employee.lastName}`}
                             </h2>
                             <Badge className={employee.role === 'ADMIN' ? 'bg-red-500' : employee.role === 'MANAGER' ? 'bg-purple-500' : 'bg-blue-500'}>
                                 {formatRole(employee.role)}
@@ -200,7 +198,7 @@ export default function EmployeeDetails({ unitId, employeeId }: EmployeeDetailsP
                                 <Calendar size={16} className="text-primary" />
                                 <span>Cadastrado em</span>
                             </p>
-                            <p className="font-medium">{formatDate(employee.createdAt)}</p>
+                            <p className="font-medium">{(employee.createdAt)}</p>
                         </div>
 
                         <div className="space-y-1">

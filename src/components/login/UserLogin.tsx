@@ -1,8 +1,7 @@
-// components/login/UserLogin.tsx
 "use client"
 
 import { useState } from 'react';
-import { userLogin } from '@/hooks/useAuth';
+import { useAuthCheck } from '@/hooks/sessionManager';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -16,19 +15,23 @@ interface UserLoginProps {
 export function UserLogin({ onLoginSuccess }: UserLoginProps) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const { mutate, isPending, error } = userLogin();
+    const { login, isLoading, error } = useAuthCheck();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         console.log('UserLogin - Enviando formulário de login:', email);
 
         try {
-            await mutate(
-                { email, password },
-                { onSuccess: onLoginSuccess }
-            );
+            // Usar o método login do hook useAuthCheck
+            const result = await login(email, password);
+
+            if (result && result.success) {
+                console.log('Login de usuário bem-sucedido');
+                if (onLoginSuccess) {
+                    onLoginSuccess();
+                }
+            }
         } catch (err) {
-            // O erro já está sendo capturado pelo useLogin hook
             console.error('UserLogin - Erro tratado no componente:', err);
         }
     };
@@ -38,7 +41,7 @@ export function UserLogin({ onLoginSuccess }: UserLoginProps) {
             {error && (
                 <Alert variant="destructive">
                     <AlertDescription>
-                        {error.message || 'Falha ao fazer login. Por favor, verifique suas credenciais.'}
+                        {error || 'Falha ao fazer login. Por favor, verifique suas credenciais.'}
                     </AlertDescription>
                 </Alert>
             )}
@@ -78,9 +81,9 @@ export function UserLogin({ onLoginSuccess }: UserLoginProps) {
             <Button
                 type="submit"
                 className="w-full"
-                disabled={isPending}
+                disabled={isLoading}
             >
-                {isPending ? (
+                {isLoading ? (
                     <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Entrando...

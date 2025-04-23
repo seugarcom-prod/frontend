@@ -22,6 +22,18 @@ interface Unit {
   cnpj: string;
   status: "active" | "outOfHours" | "inactive";
   isTopSeller?: boolean;
+  isMatrix?: boolean;
+  address?: {
+    street: string;
+    number: string;
+    complement?: string;
+    zipCode: string;
+  };
+  businessHours?: Array<{
+    days: string[];
+    opens: string;
+    closes: string;
+  }>;
 }
 
 export default function UnitsList({ units, isLoading, restaurantId }: UnitsListProps) {

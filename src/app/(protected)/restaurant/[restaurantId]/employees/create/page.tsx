@@ -1,31 +1,19 @@
-// Implementação para o componente EmployeeDetailsPage
-
 'use client';
 
 import React, { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
-import EmployeeDetails from '@/components/employee/EmployeeDetails';
+import EmployeeForm from '@/components/employee/EmployeeForm';
 import { useAuthCheck } from '@/hooks/sessionManager';
+import { useSidebar } from '@/components/ui/sidebar';
+import Header from '@/components/header/Header';
+import { cn } from '@/lib/utils';
+import { Sidebar } from '@/components/dashboard/SideMenu';
 
-export default function EmployeeDetailsPage() {
-    const params = useParams();
-    const router = useRouter();
-    const unitId = params.unitId as string;
-    const employeeId = params.employeeId as string;
-
-    // Usar o hook de verificação de autenticação
-    const { isAuthenticated, isAdmin, isManager, isLoading } = useAuthCheck();
-
-    // Verificar se o usuário está autorizado (admin ou gerente)
-    const isAuthorized = isAuthenticated && (isAdmin || isManager);
-
-    // Redirecionar se não estiver autenticado após carregamento
-    useEffect(() => {
-        if (!isLoading && !isAuthenticated) {
-            router.push('/login');
-        }
-    }, [isLoading, isAuthenticated, router]);
+const CreateEmployeePage: React.FC = () => {
+    const { restaurantId } = useParams();
+    const { isAuthenticated, isLoading, isAdminOrManager } = useAuthCheck();
+    const { isOpen } = useSidebar();
 
     if (isLoading) {
         return (
@@ -43,7 +31,11 @@ export default function EmployeeDetailsPage() {
         );
     }
 
-    if (!isAuthorized) {
+    if (!isAuthenticated) {
+        return null;
+    }
+
+    if (!isAdminOrManager) {
         return (
             <div className="container mx-auto px-4 py-8">
                 <Card>
@@ -57,8 +49,20 @@ export default function EmployeeDetailsPage() {
     }
 
     return (
-        <div className="container mx-auto px-4 py-8">
-            <EmployeeDetails unitId={unitId} employeeId={employeeId} />
+        <div className="w-full flex flex-col h-screen">
+            <Header />
+
+            <div className={cn(
+                "flex flex-col w-screen transition-all duration-300",
+                isOpen ? "ml-64" : "ml-0"
+            )}>
+                <Sidebar />
+                <div className='w-full p-10 items-center justify-start'>
+                    <EmployeeForm restaurantId={String(restaurantId)} isEditMode={false} />
+                </div>
+            </div>
         </div>
     );
-}
+};
+
+export default CreateEmployeePage; 
